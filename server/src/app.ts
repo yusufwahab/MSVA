@@ -15,10 +15,10 @@ import { testRouter } from "./routes/test.js";
 import { tutorRouter } from "./routes/tutor.js";
 import { webhookRouter } from "./routes/webhooks.js";
 import {
+  BrevoOtpMailer,
   GoogleSheetsClient,
   LiveClueQuestClient,
   LivePaystackClient,
-  SupabaseOtpMailer,
   TestOtpMailer,
   TestPaystackClient,
   TestQuizClient,
@@ -32,7 +32,7 @@ export function buildContext(config: Config, overrides: Partial<Ctx> & { db?: Db
   return {
     db,
     config,
-    mailer: overrides.mailer ?? (config.EMAIL_ADAPTER === "supabase" ? new SupabaseOtpMailer(config) : new TestOtpMailer(db, config)),
+    mailer: overrides.mailer ?? (config.EMAIL_ADAPTER === "brevo" ? new BrevoOtpMailer(db, config) : new TestOtpMailer(db, config)),
     quiz: overrides.quiz ?? (config.CLUEQUEST_ADAPTER === "test" ? new TestQuizClient(config) : new LiveClueQuestClient(config)),
     paystack: overrides.paystack ?? (config.PAYSTACK_ADAPTER === "test" ? new TestPaystackClient(config) : new LivePaystackClient(config.PAYSTACK_SECRET_KEY)),
     sheets:

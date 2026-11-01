@@ -6,7 +6,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 
 /**
  * Test-only helpers. Mounted solely when ENABLE_TEST_ENDPOINTS=1 (refused in production by config).
- * Nothing here talks to the real ClueQuest, Paystack or Supabase.
+ * Nothing here talks to the real ClueQuest, Paystack or Brevo.
  */
 export function testRouter(ctx: Ctx) {
   const r = Router();

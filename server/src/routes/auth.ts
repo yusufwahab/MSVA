@@ -6,7 +6,6 @@ import { HttpError, body, emailSchema, passwordSchema } from "../lib/http.js";
 import { hashPassword, randomToken, sha256, verifyPassword } from "../lib/security.js";
 import { SESSION_COOKIE, requireAuth } from "../middleware/auth.js";
 import { createSession, revokeSessions, sendActivationCode, sendResetCode } from "../services/people.js";
-import { OtpUnavailableError } from "../services/adapters.js";
 import { enqueueSync } from "../services/jobs.js";
 
 export function setSessionCookie(ctx: Ctx, res: Response, raw: string, expiresAt: Date) {
@@ -80,12 +79,7 @@ export function authRouter(ctx: Ctx) {
     const user = await db.user.findUnique({ where: { email } });
     let ok = false;
     if (user && user.status === (purpose === "activate" ? "INVITED" : "ACTIVE")) {
-      try {
-        ok = await ctx.mailer.verifyCode(email, code);
-      } catch (e) {
-        if (e instanceof OtpUnavailableError) throw new HttpError(503, "OTP_UNAVAILABLE", "We could not check your code right now. Please try again in a moment.");
-        throw e;
-      }
+      ok = await ctx.mailer.verifyCode(email, code);
     }
     if (!ok || !user) throw new HttpError(400, "INVALID_CODE", "That code is not correct or has expired. Request a new one.");
 

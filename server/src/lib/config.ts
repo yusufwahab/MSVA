@@ -16,13 +16,15 @@ const schema = z.object({
   SESSION_TTL_DAYS: z.coerce.number().default(14),
   WATCH_THRESHOLD_PERCENT: z.coerce.number().min(1).max(100).default(80),
 
-  /** "supabase" sends and checks one-time codes through Supabase Auth; "test" keeps codes in the database (never in production). */
-  EMAIL_ADAPTER: z.enum(["test", "supabase"]).default("test"),
-  SUPABASE_URL: z.string().default(""),
-  /** The project's public anon key. The OTP endpoints need no secret key. */
-  SUPABASE_ANON_KEY: z.string().default(""),
-  /** Test mailer only. Supabase's own expiry is set in its dashboard (Auth > Providers > Email). */
-  OTP_TTL_MINUTES: z.coerce.number().default(60),
+  /** "brevo" emails the one-time codes through Brevo; "test" keeps them in the database (never in production). */
+  EMAIL_ADAPTER: z.enum(["test", "brevo"]).default("test"),
+  BREVO_API_KEY: z.string().default(""),
+  /** Must be a sender verified in Brevo. */
+  EMAIL_FROM_ADDRESS: z.string().default(""),
+  EMAIL_FROM_NAME: z.string().default("MS Virtual Academy"),
+  /** How long an activation code (sent when someone is invited) stays valid. */
+  ACTIVATION_CODE_TTL_HOURS: z.coerce.number().default(72),
+  RESET_CODE_TTL_MINUTES: z.coerce.number().default(60),
 
   /** "test" uses an in-process stand-in; "live" talks to ClueQuest's partner API. */
   CLUEQUEST_ADAPTER: z.enum(["test", "live"]).default("live"),
@@ -73,7 +75,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     if (c.ENABLE_TEST_ENDPOINTS) throw new Error("ENABLE_TEST_ENDPOINTS must not be set in production");
     if (c.EMAIL_ADAPTER === "test") throw new Error("EMAIL_ADAPTER=test is not allowed in production");
     if (c.CLUEQUEST_ADAPTER === "test") throw new Error("CLUEQUEST_ADAPTER=test is not allowed in production");
-    if (c.EMAIL_ADAPTER === "supabase" && (!c.SUPABASE_URL || !c.SUPABASE_ANON_KEY)) throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required when EMAIL_ADAPTER=supabase");
+    if (c.EMAIL_ADAPTER === "brevo" && (!c.BREVO_API_KEY || !c.EMAIL_FROM_ADDRESS)) throw new Error("BREVO_API_KEY and EMAIL_FROM_ADDRESS are required when EMAIL_ADAPTER=brevo");
     if (c.PAYSTACK_ADAPTER === "test") throw new Error("PAYSTACK_ADAPTER=test is not allowed in production");
   }
   return c;

@@ -8,7 +8,7 @@ import { Alert, Button, TextField, buttonClass } from "@/components/ui";
 import { api, ApiError, errMsg } from "@/lib/api";
 
 /**
- * Account activation and password reset share one flow: Supabase Auth emails a one-time code,
+ * Account activation and password reset share one flow: MSVA emails a one-time code (through Brevo),
  * and the code plus the new password go to /api/auth/verify-otp together.
  */
 export function CodeForm({ purpose }: { purpose: "activate" | "reset" }) {

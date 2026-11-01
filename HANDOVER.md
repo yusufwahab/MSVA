@@ -7,8 +7,8 @@ Every checked item below was exercised by the automated suites listed at the end
 **Onboarding and access (Phase 2)**
 - Admin creates tracks, cohorts and ordered modules; first admin is created by a setup command that refuses a second run.
 - Student added singly or by CSV. The preview classifies rows (new, new enrolment, already enrolled, duplicate in file, invalid); re-importing the same file changes nothing.
-- Permanent student ID (`MSVA-00001`). Activation uses a one-time emailed code plus a new password in one step; only the approved enrolment is activated; the student lands on the dashboard (with track and next session when no class exists).
-- Resending or correcting an email supersedes the earlier code. Wrong, expired, used and superseded codes get one generic message; five wrong guesses lock a code (test mailer; Supabase applies its own limits).
+- Permanent student ID (`MSVA-00001`). Activation uses a one-time code emailed through Brevo plus a new password in one step; only the approved enrolment is activated; the student lands on the dashboard (with track and next session when no class exists).
+- Resending or correcting an email supersedes the earlier code. Wrong, expired, used and superseded codes get one generic message; five wrong guesses lock a code; a code that Brevo failed to send is discarded so the previous one keeps working.
 - Password reset by emailed code (no account enumeration; all sessions revoked), returning sign-in, wrong-password handling.
 - Roles, status, track and cohort checked on every request; deactivating a user kills an open session immediately. Removing a tutor keeps classes, quiz links and results.
 
@@ -46,7 +46,7 @@ A one-off script started MSVA's real `LiveClueQuestClient` against a real ClueQu
 | Item | What is missing | What exists |
 | --- | --- | --- |
 | **ClueQuest, deployed** | A deployed ClueQuest, a partner registered with MSVA's real webhook URL and return origin, and tutors opting quizzes in. | `LiveClueQuestClient` and the webhook receiver, run against a local ClueQuest (above) and unit-tested with a fake `fetch`. |
-| **Supabase Auth email codes** | A Supabase project with the email templates edited to include `{{ .Token }}` and a custom SMTP provider. See [docs/SUPABASE_AUTH.md](docs/SUPABASE_AUTH.md). | `SupabaseOtpMailer` (`/auth/v1/otp`, `/auth/v1/verify`), unit-tested with a fake `fetch`. Never called against Supabase; browser and API tests use the database-backed test mailer. |
+| **Brevo email** | `BREVO_API_KEY` and a sender verified in Brevo. See [docs/EMAIL.md](docs/EMAIL.md). | `BrevoOtpMailer` (POST `/v3/smtp/email`), unit-tested with a fake `fetch`. Never called against Brevo from the code base; browser and API tests use the database-backed test mailer. |
 | **Google sign-in** | OAuth client id and secret. | Authorization-code flow; an invited account whose Google-verified email matches is activated. No test covers it. |
 | **Google Sheets** | Service account JSON and a shared sheet with tabs Registrations, Enrolments, Scores. | `GoogleSheetsClient` (JWT bearer, `values:append`), untested against Google. |
 | **Paystack (test mode)** | `sk_test_…` key and a webhook URL. | `LivePaystackClient` for initialize/verify, untested against Paystack. No browser test of the premium purchase screens. |
@@ -56,7 +56,7 @@ A one-off script started MSVA's real `LiveClueQuestClient` against a real ClueQu
 
 ## Defaults I chose (all reversible)
 
-- Watch threshold 80%, pass mark 70%, unlimited retakes, sessions 14 days. Code lifetime is whatever the Supabase project sets (default 1 hour). ClueQuest launch links last 15 minutes (its setting).
+- Watch threshold 80%, pass mark 70%, unlimited retakes, sessions 14 days. Activation codes last 72 hours and reset codes 60 minutes. ClueQuest launch links last 15 minutes (its setting).
 - A module unlocks when every published class in earlier modules (for the student's cohort) is passed. A track is complete when all its published classes are passed and, if a final-assessment module exists, it has content. Mark the final module with "This module holds the final assessment".
 - Any tutor currently assigned to a track can edit and view that track's classes.
 - A student deactivated and later reactivated keeps all results.
@@ -68,7 +68,6 @@ A one-off script started MSVA's real `LiveClueQuestClient` against a real ClueQu
 - Viewing progress is reported by the browser, so a determined student can send a fake position. Real enforcement needs player telemetry or ClueQuest-side checks.
 - Rate limiting is in memory (single instance). Run one API instance or move it to a shared store.
 - ClueQuest's webhook carries totals only, so tutors see scores and attempts but no per-question insight.
-- Supabase's code emails are limited by its own rate limits (one per address per minute, and a low hourly cap on its built-in sender), and it cannot say why a code failed.
 - No accessibility audit tool was run; keyboard, focus, labels and overflow were checked in tests only.
 - Deprecation warning from `pg` ("client.query() when already executing a query") appears in logs; it is harmless and comes from the driver adapter.
 

@@ -1,6 +1,6 @@
 # MSVA Student Portal
 
-Invite-only learning portal for MS Virtual Academy. Students watch tutor-led YouTube classes, take an individual quiz on ClueQuest after each one, and earn a certificate. MSVA owns enrolment, classes, access, progress and certificates; ClueQuest owns quiz creation, the quiz screens, marking and multiplayer rooms; Supabase Auth emails the one-time codes.
+Invite-only learning portal for MS Virtual Academy. Students watch tutor-led YouTube classes, take an individual quiz on ClueQuest after each one, and earn a certificate. MSVA owns enrolment, classes, access, progress and certificates; ClueQuest owns quiz creation, the quiz screens, marking and multiplayer rooms; Brevo emails the one-time codes.
 
 | Part | Location | Stack |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Invite-only learning portal for MS Virtual Academy. Students watch tutor-led You
 
 The browser only talks to the Next.js origin. `/api/*` is proxied to Express (`next.config.ts`), so session cookies are first-party and no secret reaches the client.
 
-Read [HANDOVER.md](HANDOVER.md) for what is verified and what is waiting on credentials, [docs/CLUEQUEST_INTEGRATION.md](docs/CLUEQUEST_INTEGRATION.md) for how quizzes connect, and [docs/SUPABASE_AUTH.md](docs/SUPABASE_AUTH.md) for the email codes.
+Read [HANDOVER.md](HANDOVER.md) for what is verified and what is waiting on credentials, [docs/CLUEQUEST_INTEGRATION.md](docs/CLUEQUEST_INTEGRATION.md) for how quizzes connect, and [docs/EMAIL.md](docs/EMAIL.md) for the email codes.
 
 ## Setup
 

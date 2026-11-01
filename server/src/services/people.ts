@@ -14,19 +14,19 @@ export async function nextStudentCode(db: DbOrTx): Promise<string> {
 }
 
 /**
- * Asks the mailer (Supabase Auth in production) to email a one-time code to the account's address.
+ * Asks the mailer (Brevo in production) to email a one-time code to the account's address.
  * A newer code replaces the earlier one, so "resend" and "correct the email" supersede old codes.
  */
 export async function sendActivationCode(ctx: Ctx, userId: string) {
   const user = await ctx.db.user.findUniqueOrThrow({ where: { id: userId } });
   if (user.status !== "INVITED") throw new HttpError(409, "NOT_INVITED", "This account has already been activated.");
-  const r = await ctx.mailer.sendCode(user.email);
+  const r = await ctx.mailer.sendCode({ email: user.email, name: user.name }, "activate");
   return { sent: r.ok, error: r.error };
 }
 
 export async function sendResetCode(ctx: Ctx, userId: string) {
   const user = await ctx.db.user.findUniqueOrThrow({ where: { id: userId } });
-  const r = await ctx.mailer.sendCode(user.email);
+  const r = await ctx.mailer.sendCode({ email: user.email, name: user.name }, "reset");
   return { sent: r.ok, error: r.error };
 }
 

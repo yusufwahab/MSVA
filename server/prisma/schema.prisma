@@ -91,7 +91,7 @@ model Session {
   @@index([userId])
 }
 
-/// One-time codes for the local test mailer. With EMAIL_ADAPTER=supabase the code is issued and checked by Supabase Auth and nothing is stored here.
+/// Hashes of the one-time codes MSVA emails for account activation and password reset (sent through Brevo, or recorded by the test mailer).
 model OtpCode {
   id           String    @id @default(cuid())
   email        String

@@ -5,37 +5,57 @@ import { randomToken, sha256 } from "../lib/security.js";
 
 /* ---------------------------------------------------------------- Email */
 
+export type OtpPurpose = "activate" | "reset";
+
 /**
- * One-time codes for account activation and password reset.
- * With Supabase Auth the code is generated, emailed and checked by Supabase; MSVA never sees it.
+ * One-time codes for account activation and password reset. MSVA generates and checks the code;
+ * the mailer only delivers the email.
  */
 export interface OtpMailer {
-  readonly mode: "test" | "supabase";
-  sendCode(email: string): Promise<{ ok: boolean; error?: string }>;
-  /** True only when the code is correct, unused and unexpired. Throws OtpUnavailableError if the service cannot be reached. */
+  readonly mode: "test" | "brevo";
+  sendCode(to: { email: string; name: string }, purpose: OtpPurpose): Promise<{ ok: boolean; error?: string }>;
+  /** True only when the code is correct, unused, unexpired and the newest one sent to this address. */
   verifyCode(email: string, code: string): Promise<boolean>;
 }
 
-export class OtpUnavailableError extends Error {}
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-/** Keeps codes in the database and records each email so tests and local development can read the code. */
-export class TestOtpMailer implements OtpMailer {
-  readonly mode = "test" as const;
+/** The code comes first in the text so it is easy to find, and the link pre-fills the email address. */
+export function otpEmail(cfg: Config, purpose: OtpPurpose, name: string, email: string, code: string) {
+  const activate = purpose === "activate";
+  const page = `${cfg.APP_URL}/${activate ? "activate" : "reset-password"}?email=${encodeURIComponent(email)}`;
+  const life = activate ? `${cfg.ACTIVATION_CODE_TTL_HOURS} hours` : `${cfg.RESET_CODE_TTL_MINUTES} minutes`;
+  const subject = activate ? "Your MS Virtual Academy activation code" : "Your MS Virtual Academy password reset code";
+  const lead = activate ? "You have been invited to MS Virtual Academy. Use this code to activate your account and choose a password." : "Use this code to choose a new password.";
+  const text = `Your MS Virtual Academy code is ${code}\n\nHello ${name},\n${lead}\nEnter the code, this email address and your password here: ${page}\n\nThe code expires in ${life}, and only the newest code works. If you did not ask for this, ignore this email.`;
+  const html = `<div style="font-family:Georgia,serif;max-width:560px;margin:auto;color:#1b1f2a"><h1 style="font-size:22px;color:#1d2b53">${esc(subject)}</h1><p>Hello ${esc(name)},</p><p>${esc(lead)}</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px;margin:20px 0">${esc(code)}</p><p><a href="${esc(page)}" style="background:#1d2b53;color:#fff;padding:10px 16px;text-decoration:none;display:inline-block">Open the page</a></p><p>The code expires in ${life}, and only the newest code works. If you did not ask for this, ignore this email.</p><p style="color:#666;font-size:13px">MS Virtual Academy</p></div>`;
+  return { subject, text, html };
+}
+
+/** Stores a hash of each code and checks it later; subclasses only deliver the message. */
+abstract class DbOtpMailer implements OtpMailer {
+  abstract readonly mode: "test" | "brevo";
   constructor(
-    private db: Db,
-    private cfg: Config,
+    protected db: Db,
+    protected cfg: Config,
   ) {}
-  async sendCode(email: string) {
+  protected abstract deliver(to: string, msg: { subject: string; text: string; html: string }): Promise<{ ok: boolean; error?: string }>;
+
+  async sendCode(to: { email: string; name: string }, purpose: OtpPurpose) {
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-    await this.db.$transaction([
-      this.db.otpCode.updateMany({ where: { email, usedAt: null, supersededAt: null }, data: { supersededAt: new Date() } }),
-      this.db.otpCode.create({ data: { email, codeHash: sha256(`${email}:${code}`), expiresAt: new Date(Date.now() + this.cfg.OTP_TTL_MINUTES * 60_000) } }),
-      this.db.emailMessage.create({
-        data: { to: email, subject: "Your MS Virtual Academy code", kind: "otp", text: `Your MS Virtual Academy code is ${code}`, html: "", provider: "test", status: "captured" },
-      }),
-    ]);
-    return { ok: true };
+    const ttlMs = purpose === "activate" ? this.cfg.ACTIVATION_CODE_TTL_HOURS * 3600_000 : this.cfg.RESET_CODE_TTL_MINUTES * 60_000;
+    const row = await this.db.otpCode.create({ data: { email: to.email, codeHash: sha256(`${to.email}:${code}`), expiresAt: new Date(Date.now() + ttlMs) } });
+    const r = await this.deliver(to.email, otpEmail(this.cfg, purpose, to.name, to.email, code));
+    if (r.ok) {
+      // A newer code replaces every earlier unused one for this address, but only once it has actually been sent.
+      await this.db.otpCode.updateMany({ where: { email: to.email, id: { not: row.id }, usedAt: null, supersededAt: null }, data: { supersededAt: new Date() } });
+    } else {
+      // A code nobody received is discarded, so an earlier code that did arrive keeps working.
+      await this.db.otpCode.delete({ where: { id: row.id } }).catch(() => undefined);
+    }
+    return r;
   }
+
   async verifyCode(email: string, code: string) {
     const row = await this.db.otpCode.findFirst({ where: { email, usedAt: null, supersededAt: null }, orderBy: { createdAt: "desc" } });
     if (!row || row.expiresAt < new Date() || row.attempts >= 5) return false;
@@ -48,43 +68,48 @@ export class TestOtpMailer implements OtpMailer {
   }
 }
 
-/**
- * Supabase Auth email OTP over its REST API (the same calls supabase-js makes for signInWithOtp / verifyOtp).
- * The emails come from the templates and SMTP settings of the Supabase project; see docs/SUPABASE_AUTH.md.
- */
-export class SupabaseOtpMailer implements OtpMailer {
-  readonly mode = "supabase" as const;
+/** Records every message in the database so tests and local development can read the code. */
+export class TestOtpMailer extends DbOtpMailer {
+  readonly mode = "test" as const;
+  protected async deliver(to: string, m: { subject: string; text: string; html: string }) {
+    await this.db.emailMessage.create({ data: { to, subject: m.subject, kind: "otp", text: m.text, html: m.html, provider: "test", status: "captured" } });
+    return { ok: true };
+  }
+}
+
+/** Sends the code email through Brevo's transactional API (POST /v3/smtp/email). */
+export class BrevoOtpMailer extends DbOtpMailer {
+  readonly mode = "brevo" as const;
   constructor(
-    private cfg: Config,
+    db: Db,
+    cfg: Config,
     private fetchFn: typeof fetch = fetch,
-  ) {}
-  private call(path: string, body: object) {
-    return this.fetchFn(`${this.cfg.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/${path}`, {
-      method: "POST",
-      headers: { apikey: this.cfg.SUPABASE_ANON_KEY, "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+  ) {
+    super(db, cfg);
   }
-  async sendCode(email: string) {
+  protected async deliver(to: string, m: { subject: string; text: string; html: string }) {
+    let error: string | undefined;
     try {
-      const res = await this.call("otp", { email, create_user: true });
-      if (res.ok) return { ok: true };
-      return { ok: false, error: res.status === 429 ? "Supabase is rate limiting email sends" : `Supabase responded ${res.status}` };
+      const res = await this.fetchFn("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "api-key": this.cfg.BREVO_API_KEY, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+          sender: { name: this.cfg.EMAIL_FROM_NAME, email: this.cfg.EMAIL_FROM_ADDRESS },
+          to: [{ email: to }],
+          subject: m.subject,
+          htmlContent: m.html,
+          textContent: m.text,
+        }),
+      });
+      if (!res.ok) error = `Brevo responded ${res.status}`;
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : "Supabase request failed" };
+      error = e instanceof Error ? e.message : "Brevo request failed";
     }
-  }
-  async verifyCode(email: string, code: string) {
-    let res: Response;
-    try {
-      res = await this.call("verify", { type: "email", email, token: code.trim() });
-    } catch {
-      throw new OtpUnavailableError("Supabase request failed");
-    }
-    if (res.ok) return true;
-    // A 4xx other than rate limiting means the code was wrong, used or expired.
-    if (res.status >= 400 && res.status < 500 && res.status !== 429) return false;
-    throw new OtpUnavailableError(`Supabase responded ${res.status}`);
+    // The body holds the code, so only metadata is kept.
+    await this.db.emailMessage.create({
+      data: { to, subject: m.subject, kind: "otp", text: "", html: "", provider: "brevo", status: error ? "failed" : "sent", error },
+    });
+    return error ? { ok: false, error } : { ok: true };
   }
 }
 
