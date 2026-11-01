@@ -1,0 +1,355 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TUTOR
+  STUDENT
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DEACTIVATED
+}
+
+enum EnrolmentStatus {
+  INVITED
+  ACTIVE
+  WITHDRAWN
+}
+
+enum ClassStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum AttemptStatus {
+  LAUNCHED
+  PASSED
+  FAILED
+  EXPIRED
+}
+
+enum CertificateStatus {
+  PENDING
+  ISSUED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum JobStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  role         Role
+  status       UserStatus @default(INVITED)
+  passwordHash String?
+  googleSub    String?    @unique
+  studentCode  String?    @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  activatedAt  DateTime?
+
+  sessions         Session[]
+  enrolments       Enrolment[]
+  tutorAssignments TutorAssignment[]
+  authoredClasses  Class[]                  @relation("ClassAuthor")
+  progress         ViewProgress[]
+  attempts         QuizAttempt[]
+  certificates     Certificate[]
+  eligibilities    CertificateEligibility[]
+  payments         Payment[]
+  entitlements     Entitlement[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// One-time codes for the local test mailer. With EMAIL_ADAPTER=supabase the code is issued and checked by Supabase Auth and nothing is stored here.
+model OtpCode {
+  id           String    @id @default(cuid())
+  email        String
+  codeHash     String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  supersededAt DateTime?
+  attempts     Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@index([email])
+}
+
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String   @default("")
+  isPremium   Boolean  @default(false)
+  priceKobo   Int?
+  currency    String   @default("NGN")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  cohorts          Cohort[]
+  modules          Module[]
+  enrolments       Enrolment[]
+  tutorAssignments TutorAssignment[]
+  classes          Class[]
+  certificates     Certificate[]
+  eligibilities    CertificateEligibility[]
+  payments         Payment[]
+  entitlements     Entitlement[]
+}
+
+model Cohort {
+  id            String    @id @default(cuid())
+  trackId       String
+  track         Track     @relation(fields: [trackId], references: [id])
+  name          String
+  startsAt      DateTime?
+  nextSessionAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  enrolments Enrolment[]
+  classes    Class[]
+
+  @@unique([trackId, name])
+}
+
+model Enrolment {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  trackId   String
+  track     Track           @relation(fields: [trackId], references: [id])
+  cohortId  String
+  cohort    Cohort          @relation(fields: [cohortId], references: [id])
+  status    EnrolmentStatus @default(INVITED)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([userId, trackId])
+  @@index([cohortId])
+}
+
+model TutorAssignment {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  trackId   String
+  track     Track     @relation(fields: [trackId], references: [id])
+  createdAt DateTime  @default(now())
+  removedAt DateTime?
+
+  @@unique([userId, trackId])
+}
+
+model Module {
+  id       String  @id @default(cuid())
+  trackId  String
+  track    Track   @relation(fields: [trackId], references: [id])
+  position Int
+  title    String
+  isFinal  Boolean @default(false)
+
+  classes Class[]
+
+  @@unique([trackId, position])
+}
+
+model Class {
+  id             String      @id @default(cuid())
+  trackId        String
+  track          Track       @relation(fields: [trackId], references: [id])
+  cohortId       String
+  cohort         Cohort      @relation(fields: [cohortId], references: [id])
+  moduleId       String
+  module         Module      @relation(fields: [moduleId], references: [id])
+  authorId       String
+  author         User        @relation("ClassAuthor", fields: [authorId], references: [id])
+  position       Int         @default(0)
+  title          String      @default("")
+  description    String      @default("")
+  releaseAt      DateTime?
+  youtubeUrl     String      @default("")
+  youtubeId      String      @default("")
+  quizId         String      @default("")
+  quizTitle      String      @default("")
+  multiplayerUrl String      @default("")
+  status         ClassStatus @default(DRAFT)
+  publishedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  progress ViewProgress[]
+  attempts QuizAttempt[]
+
+  @@index([cohortId, status])
+  @@index([moduleId])
+}
+
+model ViewProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  classId         String
+  class           Class    @relation(fields: [classId], references: [id])
+  positionSeconds Int      @default(0)
+  durationSeconds Int      @default(0)
+  watchedPercent  Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, classId])
+}
+
+model QuizAttempt {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  classId           String
+  class             Class         @relation(fields: [classId], references: [id])
+  quizId            String
+  studentRef        String        @unique
+  attemptNo         Int
+  status            AttemptStatus @default(LAUNCHED)
+  launchedAt        DateTime      @default(now())
+  launchExpires     DateTime?
+  providerAttemptId String?       @unique
+  score             Float?
+  maxScore          Float?
+  passMark          Float?
+  passed            Boolean?
+  returnedAt        DateTime?
+  resultAt          DateTime?
+  questions         Json?
+
+  @@index([userId, classId])
+  @@index([classId])
+}
+
+model CallbackEvent {
+  id         String   @id @default(cuid())
+  eventId    String   @unique
+  attemptId  String?
+  outcome    String
+  receivedAt DateTime @default(now())
+}
+
+model CertificateEligibility {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  trackId    String
+  track      Track    @relation(fields: [trackId], references: [id])
+  eligibleAt DateTime @default(now())
+
+  @@unique([userId, trackId])
+}
+
+model Certificate {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
+  trackId         String
+  track           Track             @relation(fields: [trackId], references: [id])
+  status          CertificateStatus @default(PENDING)
+  verificationRef String            @unique
+  studentCode     String
+  pdf             Bytes?
+  issuedAt        DateTime?
+  attempts        Int               @default(0)
+  lastError       String?
+
+  @@unique([userId, trackId])
+}
+
+model Entitlement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  trackId   String
+  track     Track    @relation(fields: [trackId], references: [id])
+  paymentId String   @unique
+  createdAt DateTime @default(now())
+
+  @@unique([userId, trackId])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  trackId     String
+  track       Track         @relation(fields: [trackId], references: [id])
+  reference   String        @unique
+  amountKobo  Int
+  currency    String
+  status      PaymentStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  failureNote String?
+}
+
+model SyncJob {
+  id        String    @id @default(cuid())
+  kind      String
+  dedupeKey String?
+  payload   Json
+  status    JobStatus @default(PENDING)
+  attempts  Int       @default(0)
+  nextRunAt DateTime  @default(now())
+  lastError String?
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+
+  @@index([status, nextRunAt])
+}
+
+model EmailMessage {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  text      String
+  html      String
+  kind      String
+  provider  String
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+}
+
+model AppSetting {
+  key   String @id
+  value String
+}

@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: #fbf8f3;
+  --color-card: #ffffff;
+  --color-ink: #1b1f2a;
+  --color-muted: #555b6b;
+  --color-line: #d8d2c5;
+  --color-navy: #1d2b53;
+  --color-navy-deep: #141f3d;
+  --color-sage: #e5ede1;
+  --color-sand: #f1ebdf;
+  --color-clay: #9c4a22;
+  --color-danger: #a02020;
+  --color-danger-soft: #fbe9e6;
+  --color-ok: #1d6a3a;
+  --color-ok-soft: #e3f2e7;
+  --color-warn-soft: #fbf0d4;
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+/* One strong, visible focus indicator everywhere. */
+:focus-visible {
+  outline: 3px solid #b8741a;
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(20 31 61 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }
