@@ -52,12 +52,12 @@ export default function Page() {
   return (
     <div className="space-y-6">
       <PageHeader title="Reports" lead="Enrolments, progress and quiz scores across the academy." />
-      <div role="tablist" aria-label="Report type" className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label="Report type" className="inline-flex flex-wrap gap-1 rounded-full border border-line bg-surface p-1">
         {tabs.map(([k, label]) => (
-          <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 border-2 px-4 font-semibold ${tab === k ? "border-navy bg-navy text-white" : "border-line bg-card text-navy hover:bg-sand"}`}>{label}</button>
+          <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-full px-5 text-[0.95rem] font-semibold ${tab === k ? "bg-accent-bright text-on-accent" : "text-ink/85 hover:bg-surface-2"}`}>{label}</button>
         ))}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 rounded-2xl border border-line bg-surface p-4 sm:grid-cols-2">
         <SelectField label="Track" value={trackId} onChange={(e) => { setTrackId(e.target.value); setCohortId(""); }}>
           <option value="">All tracks</option>{tracks.data?.tracks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </SelectField>

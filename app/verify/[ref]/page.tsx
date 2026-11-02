@@ -18,7 +18,7 @@ export default function Page() {
           <Alert tone="success" title="This certificate is genuine.">
             It was issued by MS Virtual Academy.
           </Alert>
-          <dl className="space-y-2 border border-line bg-card p-4">
+          <dl className="space-y-2 border border-line bg-surface p-4">
             <div><dt className="text-sm font-semibold">Awarded to</dt><dd>{data.name}</dd></div>
             <div><dt className="text-sm font-semibold">Student ID</dt><dd>{data.studentCode}</dd></div>
             <div><dt className="text-sm font-semibold">Track</dt><dd>{data.track}</dd></div>

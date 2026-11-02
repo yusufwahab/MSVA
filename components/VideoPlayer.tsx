@@ -114,7 +114,7 @@ export function VideoPlayer({
 
   return (
     <div>
-      <div className="aspect-video w-full bg-navy-deep" data-testid="video-frame">
+      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-line bg-black" data-testid="video-frame">
         <div ref={host} className="h-full w-full [&>iframe]:h-full [&>iframe]:w-full" />
       </div>
       {failed && (

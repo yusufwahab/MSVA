@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 test.describe("public pages", () => {
   test("landing page explains the academy and offers sign in and activation without self-enrolment", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Learn with your tutors");
-    await expect(page.getByRole("link", { name: "Student sign in" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Learn In-Demand Skills");
+    await expect(page.getByRole("link", { name: "Sign in" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Activate account" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "How the academy works" })).toBeVisible();
     for (const step of ["Join your assigned track", "Watch tutor-led sessions", "Take a quiz after every session", "Earn your certificate"]) {
@@ -52,5 +52,25 @@ test.describe("public pages", () => {
     await expect(page.getByRole("heading", { name: "Activate your account" })).toBeVisible();
     await page.goto("/verify/NOT-A-REAL-REFERENCE");
     await expect(page.getByRole("alert").filter({ hasText: "No issued certificate" })).toBeVisible();
+  });
+
+  test("light and dark themes can be switched, and the choice is remembered", async ({ page }) => {
+    await page.goto("/");
+    const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+    expect(await theme()).toBe("dark"); // dark is the default
+    const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    const darkBg = await bg();
+
+    await page.getByRole("button", { name: "Switch to light mode" }).click();
+    expect(await theme()).toBe("light");
+    await expect.poll(bg).not.toBe(darkBg); // the colour eases over 150ms
+    await page.reload();
+    expect(await theme()).toBe("light"); // remembered across a reload and before first paint
+
+    await page.goto("/sign-in");
+    expect(await theme()).toBe("light"); // and across pages
+    await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    expect(await theme()).toBe("dark");
+    await expect.poll(bg).toBe(darkBg); // the colour eases over 150ms
   });
 });

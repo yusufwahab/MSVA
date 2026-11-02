@@ -60,13 +60,13 @@ function SignInForm() {
           </a>
         )}
         <p className="text-sm">
-          <Link href="/forgot-password" className="font-semibold text-navy underline underline-offset-4">
+          <Link href="/forgot-password" className="font-semibold text-accent-ink underline underline-offset-4">
             Forgot your password?
           </Link>
         </p>
         <p className="text-sm text-muted">
-          First time here? Use the activation link in your invitation email, or{" "}
-          <Link href="/activate" className="font-semibold text-navy underline underline-offset-4">
+          First time here? Activate your account with the code in your invitation email, or{" "}
+          <Link href="/activate" className="font-semibold text-accent-ink underline underline-offset-4">
             find out how to activate
           </Link>
           .

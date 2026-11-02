@@ -126,14 +126,14 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Students" lead="Add students one at a time or import a CSV. Each student gets a permanent ID and a separate activation email.">
+      <PageHeader title="Students" lead="Add students one at a time or import a CSV. Each student gets a permanent ID and an emailed activation code.">
         <Button variant="secondary" onClick={() => openModal("csv")}>Import CSV</Button>
         <Button onClick={() => openModal("add")}>Add student</Button>
       </PageHeader>
 
       {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+      <div className="grid gap-4 rounded-2xl border border-line bg-surface p-4 sm:grid-cols-[1fr_14rem]">
         <TextField label="Search by name, email or student ID" value={search} onChange={(e) => setSearch(e.target.value)} />
         <SelectField label="Status" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
           <option value="">All</option><option value="INVITED">Awaiting activation</option><option value="ACTIVE">Active</option><option value="DEACTIVATED">Deactivated</option>
@@ -199,7 +199,7 @@ export default function Page() {
               <div className="max-h-64 overflow-auto border border-line">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Import preview</caption>
-                  <thead className="sticky top-0 bg-sand"><tr><th className="px-2 py-1.5">Line</th><th className="px-2 py-1.5">Email</th><th className="px-2 py-1.5">Result</th></tr></thead>
+                  <thead className="sticky top-0 bg-surface-2"><tr><th className="px-2 py-1.5">Line</th><th className="px-2 py-1.5">Email</th><th className="px-2 py-1.5">Result</th></tr></thead>
                   <tbody className="divide-y divide-line">
                     {preview.rows.map((r) => (
                       <tr key={r.line}><td className="px-2 py-1.5">{r.line}</td><td className="px-2 py-1.5">{r.email || r.name}</td><td className="px-2 py-1.5"><Badge tone={ROW_TONE[r.status]}>{ROW_LABEL[r.status]}</Badge>{r.reason && r.status === "invalid" && <div className="text-danger">{r.reason}</div>}</td></tr>

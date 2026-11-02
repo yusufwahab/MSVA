@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Badge, Button, Card, Empty, Loading, PageHeader, Table, Td } from "@/components/ui";
+import { Alert, Badge, Button, Card, Empty, Loading, PageHeader, Table, Td, buttonClass } from "@/components/ui";
 import { api, errMsg, fmtDate } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 
@@ -40,12 +40,12 @@ export default function Page() {
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
 
       {certTracks.map((t) => (
-        <Card key={t.track.id} className="border-2 border-navy">
+        <Card key={t.track.id} className="border-accent/50 bg-accent-soft">
           <h2 className="text-2xl">Certificate: {t.track.name}</h2>
           {t.certificate.status === "ISSUED" && t.certificate.id ? (
             <div className="mt-3 space-y-2">
               <p className="text-muted">You have completed every module and the final assessment.</p>
-              <a href={`/api/student/certificates/${t.certificate.id}/download`} className="inline-flex min-h-11 items-center bg-navy px-5 font-semibold text-white hover:bg-navy-deep">Download certificate (PDF)</a>
+              <a href={`/api/student/certificates/${t.certificate.id}/download`} className={buttonClass("primary")}>Download certificate (PDF)</a>
             </div>
           ) : (
             <div className="mt-3 space-y-3">
@@ -57,12 +57,12 @@ export default function Page() {
       ))}
 
       {results.data.results.length === 0 ? (
-        <Empty title="No quiz results yet">When you finish a session quiz, your score appears here. <Link href="/dashboard" className="font-semibold text-navy underline">Go to your dashboard</Link>.</Empty>
+        <Empty title="No quiz results yet">When you finish a session quiz, your score appears here. <Link href="/dashboard" className="font-semibold text-accent-ink underline">Go to your dashboard</Link>.</Empty>
       ) : (
         results.data.results.map((r) => (
-          <section key={r.classId} className="space-y-2">
+          <section key={r.classId} className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-xl"><Link className="text-navy underline underline-offset-4" href={`/classes/${r.classId}`}>{r.classTitle}</Link></h2>
+              <h2 className="text-xl"><Link className="text-accent-ink underline underline-offset-4" href={`/classes/${r.classId}`}>{r.classTitle}</Link></h2>
               <span className="text-sm text-muted">{r.track}</span>
               {r.state === "PASSED" ? <Badge tone="ok">Passed</Badge> : r.state === "PENDING" ? <Badge tone="warn">Result pending</Badge> : <Badge tone="bad">Not passed</Badge>}
             </div>

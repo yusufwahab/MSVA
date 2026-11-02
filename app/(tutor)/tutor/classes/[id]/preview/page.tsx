@@ -25,14 +25,14 @@ export default function Page() {
       {problems.length > 0 && <Alert tone="warn" title="Not ready to publish yet"><ul className="list-disc pl-5">{problems.map((x) => <li key={x}>{x}</li>)}</ul></Alert>}
       <PageHeader title={p.title} lead={p.moduleTitle} />
       {p.youtubeId ? (
-        <div className="aspect-video w-full bg-navy-deep">
+        <div className="aspect-video w-full overflow-hidden rounded-2xl border border-line bg-black">
           <iframe className="h-full w-full" src={`https://www.youtube-nocookie.com/embed/${p.youtubeId}`} title="Class video preview" allow="encrypted-media; picture-in-picture" allowFullScreen />
         </div>
       ) : (
         <Alert tone="warn">No valid YouTube video is attached.</Alert>
       )}
       {p.description && <p className="max-w-3xl whitespace-pre-line text-muted">{p.description}</p>}
-      <Card className="border-2 border-navy">
+      <Card className="border-accent/50">
         <h2 className="text-xl">Session quiz</h2>
         <p className="mt-2 text-muted">Students must watch {p.watchThreshold}% of the video before “Take session quiz” unlocks.</p>
         <p className="mt-2">{p.quizAttached ? <>Attached: <strong>{p.quizTitle || "Individual quiz"}</strong></> : "No individual quiz attached."}</p>

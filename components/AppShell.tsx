@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
+import { Logo, ThemeToggle } from "./Brand";
 import { Loading } from "./ui";
 
 export type Role = "ADMIN" | "TUTOR" | "STUDENT";
@@ -35,6 +36,30 @@ const NAV: Record<Role, { href: string; label: string }[]> = {
     { href: "/admin/settings", label: "Settings and sync" },
   ],
 };
+
+const ROLE_LABEL: Record<Role, string> = { ADMIN: "Administrator", TUTOR: "Tutor", STUDENT: "Student" };
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("");
+
+function UserChip({ me }: { me: Me }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-bright text-sm font-extrabold text-on-accent">
+        {initials(me.name)}
+      </span>
+      <div className="min-w-0 text-left leading-tight">
+        <p className="truncate text-sm font-semibold">{me.name}</p>
+        <p className="truncate text-xs text-muted">{me.studentCode ? `${ROLE_LABEL[me.role]} · ${me.studentCode}` : ROLE_LABEL[me.role]}</p>
+      </div>
+    </div>
+  );
+}
 
 function AppShellInner({ role, children }: { role: Role; children: ReactNode }) {
   const router = useRouter();
@@ -70,48 +95,107 @@ function AppShellInner({ role, children }: { role: Role; children: ReactNode }) 
 
   const items = NAV[role];
   const isActive = (href: string) => (href === HOME[role] ? path === href : path === href || path.startsWith(`${href}/`));
+  const sidebar = role === "ADMIN";
+
+  const links = (vertical: boolean) =>
+    items.map((i) => {
+      const on = isActive(i.href);
+      return (
+        <Link
+          key={i.href}
+          href={i.href}
+          aria-current={on ? "page" : undefined}
+          onClick={() => setMenu(false)}
+          className={
+            vertical
+              ? `flex min-h-11 items-center rounded-xl px-4 py-2.5 text-[0.95rem] font-medium ${on ? "bg-accent-soft font-semibold text-accent-ink" : "text-ink/85 hover:bg-surface-2"}`
+              : `flex min-h-11 items-center rounded-full px-4 py-2 text-[0.95rem] font-medium ${on ? "bg-accent-soft font-semibold text-accent-ink" : "text-ink/85 hover:bg-surface-2"}`
+          }
+        >
+          {i.label}
+        </Link>
+      );
+    });
+
+  const signOutButton = (
+    <button type="button" onClick={signOut} disabled={signingOut} className="inline-flex min-h-11 items-center rounded-full border border-line-strong px-4 text-sm font-semibold hover:border-accent-bright hover:text-accent-ink">
+      Sign out
+    </button>
+  );
+
+  if (sidebar) {
+    return (
+      <div className="flex-1 lg:grid lg:grid-cols-[17rem_1fr]">
+        <aside className="hidden border-r border-line bg-surface lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:p-5">
+          <Logo href={HOME[role]} className="px-2 py-2" />
+          <nav aria-label="Main" className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto">
+            {links(true)}
+          </nav>
+          <div className="mt-4 space-y-4 border-t border-line pt-4">
+            <UserChip me={me} />
+            <div className="flex items-center gap-2">
+              {signOutButton}
+              <ThemeToggle />
+            </div>
+          </div>
+        </aside>
+        <div className="flex min-w-0 flex-col">
+          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-canvas/95 px-4 py-3 backdrop-blur lg:hidden">
+            <Logo href={HOME[role]} />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <button type="button" className="inline-flex h-11 items-center rounded-full border border-line-strong px-4 text-sm font-semibold" aria-expanded={menu} aria-controls="main-nav" onClick={() => setMenu((v) => !v)}>
+                {menu ? "Close menu" : "Menu"}
+              </button>
+            </div>
+          </header>
+          {menu && (
+            <nav id="main-nav" aria-label="Main" className="space-y-1 border-b border-line bg-surface p-4 lg:hidden">
+              {links(true)}
+              <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+                <UserChip me={me} />
+                {signOutButton}
+              </div>
+            </nav>
+          )}
+          <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8 sm:py-10">
+            {children}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <Link href={HOME[role]} className="font-serif text-xl font-semibold text-navy">
-            MS Virtual Academy
-          </Link>
-          <button
-            type="button"
-            className="min-h-11 border-2 border-navy px-4 text-sm font-semibold text-navy lg:hidden"
-            aria-expanded={menu}
-            aria-controls="main-nav"
-            onClick={() => setMenu((v) => !v)}
-          >
-            {menu ? "Close menu" : "Menu"}
-          </button>
-          <nav id="main-nav" aria-label="Main" className={`${menu ? "flex" : "hidden"} absolute left-0 right-0 top-[4.25rem] z-20 flex-col gap-1 border-b border-line bg-card p-4 lg:static lg:flex lg:flex-row lg:items-center lg:border-0 lg:p-0`}>
-            {items.map((i) => (
-              <Link
-                key={i.href}
-                href={i.href}
-                aria-current={isActive(i.href) ? "page" : undefined}
-                onClick={() => setMenu(false)}
-                className={`min-h-11 px-3 py-2.5 text-[0.95rem] font-medium lg:py-2 ${isActive(i.href) ? "border-b-4 border-navy font-semibold text-navy" : "text-ink hover:bg-sand"}`}
-              >
-                {i.label}
-              </Link>
-            ))}
-            <div className="mt-2 flex items-center gap-3 border-t border-line pt-3 lg:ml-3 lg:mt-0 lg:border-0 lg:pt-0">
-              <span className="text-sm text-muted">
-                {me.name}
-                {me.studentCode ? ` · ${me.studentCode}` : ""}
-              </span>
-              <button type="button" onClick={signOut} disabled={signingOut} className="min-h-11 px-3 text-sm font-semibold text-navy underline underline-offset-4">
-                Sign out
-              </button>
+      <header className="sticky top-0 z-30 border-b border-line bg-canvas/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-8">
+          <Logo href={HOME[role]} />
+          <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+            {links(false)}
+          </nav>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden xl:block">
+              <UserChip me={me} />
+            </div>
+            <ThemeToggle />
+            <span className="hidden lg:inline-flex">{signOutButton}</span>
+            <button type="button" className="inline-flex h-11 items-center rounded-full border border-line-strong px-4 text-sm font-semibold lg:hidden" aria-expanded={menu} aria-controls="main-nav" onClick={() => setMenu((v) => !v)}>
+              {menu ? "Close menu" : "Menu"}
+            </button>
+          </div>
+        </div>
+        {menu && (
+          <nav id="main-nav" aria-label="Main" className="space-y-1 border-t border-line bg-surface p-4 lg:hidden">
+            {links(true)}
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+              <UserChip me={me} />
+              {signOutButton}
             </div>
           </nav>
-        </div>
+        )}
       </header>
-      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-8 sm:py-10">
         {children}
       </main>
     </>

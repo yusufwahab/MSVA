@@ -134,7 +134,7 @@ export function CodeForm({ purpose }: { purpose: "activate" | "reset" }) {
         {activate && (
           <p className="text-sm text-muted">
             Already activated?{" "}
-            <Link href="/sign-in" className="font-semibold text-navy underline underline-offset-4">
+            <Link href="/sign-in" className="font-semibold text-accent-ink underline underline-offset-4">
               Sign in
             </Link>
           </p>

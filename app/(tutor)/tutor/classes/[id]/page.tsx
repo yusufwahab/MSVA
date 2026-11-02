@@ -129,6 +129,12 @@ export default function Page() {
   const c = cls.data.class;
   const published = c.status === "PUBLISHED";
   const attached = !dirty && c.quizId ? c : null;
+  const checks: [boolean, string][] = [
+    [Boolean(form.title.trim()), "Title"],
+    [Boolean(form.releaseAt), "Release date and time"],
+    [Boolean(form.youtubeUrl.trim()), "YouTube video"],
+    [Boolean(form.quizId.trim()), "ClueQuest quiz"],
+  ];
 
   return (
     <div className="space-y-6">
@@ -137,7 +143,8 @@ export default function Page() {
       </PageHeader>
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
 
-      <form onSubmit={onSave} className="space-y-6" noValidate>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+      <form id="class-form" onSubmit={onSave} className="space-y-6" noValidate>
         <Card className="space-y-5">
           <TextField label="Class title" value={form.title} error={fieldErr.title} onChange={set("title")} maxLength={150} />
           <TextArea label="Description" value={form.description} error={fieldErr.description} onChange={set("description")} hint="Shown to students beneath the video." />
@@ -164,21 +171,35 @@ export default function Page() {
             {quizCheck?.valid && <span className="font-semibold text-ok">Quiz found{quizCheck.title ? `: ${quizCheck.title}` : ""}</span>}
             {quizCheck && !quizCheck.valid && <span role="alert" className="font-semibold text-danger">{quizCheck.message}</span>}
           </div>
-          <div data-testid="quiz-status" className="border border-line bg-sand px-4 py-3">
+          <div data-testid="quiz-status" className="rounded-xl border border-line bg-surface-2 px-4 py-3">
             {attached ? <p><strong>Quiz attached:</strong> {attached.quizTitle || "Individual quiz"} <span className="break-all text-muted">({attached.quizId})</span></p> : <p className="text-muted">{form.quizId ? "Save to attach this quiz to the class." : "No quiz attached yet."}</p>}
           </div>
           <TextField label="Optional live game link" type="url" inputMode="url" value={form.multiplayerUrl} error={fieldErr.multiplayerUrl} onChange={set("multiplayerUrl")} hint="Students see a separate “Join live game” button. It never replaces the individual quiz." />
         </Card>
-
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" loading={busy === "save"}>Save{published ? " changes" : " draft"}</Button>
-          <Link href={`/tutor/classes/${id}/preview`} className={buttonClass("secondary")} onClick={(e) => { if (dirty && !confirmLeave()) e.preventDefault(); }}>Preview as student</Link>
-          {!published && <Button type="button" variant="primary" onClick={() => setConfirm("publish")}>Publish</Button>}
-          {published && <Button type="button" variant="secondary" onClick={() => setConfirm("unpublish")}>Move back to draft</Button>}
-          {published && <Link href={`/tutor/classes/${id}/results`} className={buttonClass("secondary")}>View results</Link>}
-          {!published && <Button type="button" variant="danger" onClick={() => setConfirm("delete")}>Delete draft</Button>}
-        </div>
       </form>
+
+      <aside className="space-y-4 lg:sticky lg:top-24">
+        <Card>
+          <h2 className="text-lg">Ready to publish?</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {checks.map(([ok, label]) => (
+              <li key={label} className="flex items-center gap-3">
+                <span aria-hidden="true" className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${ok ? "bg-accent-bright text-on-accent" : "border border-line-strong text-transparent"}`}>✓</span>
+                <span className={ok ? "text-ink" : "text-muted"}>{label}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 flex flex-col gap-2">
+            <Button type="submit" form="class-form" loading={busy === "save"}>Save{published ? " changes" : " draft"}</Button>
+            <Link href={`/tutor/classes/${id}/preview`} className={buttonClass("secondary")} onClick={(e) => { if (dirty && !confirmLeave()) e.preventDefault(); }}>Preview as student</Link>
+            {!published && <Button type="button" variant="primary" onClick={() => setConfirm("publish")}>Publish</Button>}
+            {published && <Button type="button" variant="secondary" onClick={() => setConfirm("unpublish")}>Move back to draft</Button>}
+            {published && <Link href={`/tutor/classes/${id}/results`} className={buttonClass("secondary")}>View results</Link>}
+            {!published && <Button type="button" variant="danger" onClick={() => setConfirm("delete")}>Delete draft</Button>}
+          </div>
+        </Card>
+      </aside>
+      </div>
 
       <ConfirmModal
         open={confirm === "publish"}

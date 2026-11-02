@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Alert, Card, Loading, PageHeader } from "@/components/ui";
+import { Alert, Loading, PageHeader } from "@/components/ui";
 import { useLoad } from "@/lib/useLoad";
 
 interface Overview {
@@ -31,13 +31,15 @@ export default function Page() {
           {data.failedJobs > 0 && <p>{data.failedJobs} Google Sheets sync job(s) failed. <Link className="font-semibold underline" href="/admin/settings">Review sync</Link>.</p>}
         </Alert>
       )}
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map(([k, v, href]) => (
-          <Card key={k}>
-            <dt className="text-sm font-semibold text-muted">{k}</dt>
-            <dd className="font-serif text-4xl">{v}</dd>
-            <Link href={href} className="inline-block min-h-11 py-2.5 text-sm font-semibold text-navy underline underline-offset-4">View</Link>
-          </Card>
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map(([k, v, href], i) => (
+          <div key={k} className={`flex flex-col justify-between rounded-[1.25rem] border p-6 shadow-card ${i === 0 ? "border-accent/50 bg-accent-soft sm:col-span-2" : "border-line bg-surface"}`}>
+            <div>
+              <dt className="text-sm font-semibold text-muted">{k}</dt>
+              <dd className={`mt-1 font-extrabold tracking-tight ${i === 0 ? "text-6xl" : "text-4xl"}`}>{v}</dd>
+            </div>
+            <Link href={href} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-accent-ink underline-offset-4 hover:underline">View details →</Link>
+          </div>
         ))}
       </dl>
     </div>

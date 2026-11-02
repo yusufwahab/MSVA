@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Alert, Badge, Card, Empty, Loading, PageHeader, Table, Td } from "@/components/ui";
+import { Alert, Badge, Empty, Loading, PageHeader, Stat, Table, Td } from "@/components/ui";
 import { useLoad } from "@/lib/useLoad";
 
 interface Results {
@@ -23,9 +23,9 @@ export default function Page() {
   return (
     <div className="space-y-8">
       <PageHeader title={`Results: ${data.class.title}`} lead={`${data.class.track.name} · ${data.class.cohort.name}`} />
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[["Enrolled", t.enrolled], ["Submitted", t.submitted], ["Passed", t.passed], ["Outstanding", t.outstanding]].map(([k, v]) => (
-          <Card key={k as string}><dt className="text-sm font-semibold text-muted">{k}</dt><dd className="font-serif text-4xl" data-testid={`total-${String(k).toLowerCase()}`}>{v}</dd></Card>
+          <Stat key={k as string} label={String(k)} value={v} testId={`total-${String(k).toLowerCase()}`} />
         ))}
       </dl>
       <p className="text-sm text-muted">Each student is counted once, however many times they retake the quiz.</p>
@@ -49,7 +49,7 @@ export default function Page() {
       {data.outstanding.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-2xl">Students outstanding</h2>
-          <ul className="divide-y divide-line border border-line bg-card">
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {data.outstanding.map((s) => <li key={s.studentCode} className="flex justify-between gap-3 px-4 py-2.5"><span>{s.name} <span className="text-muted">{s.studentCode}</span></span><span className="text-muted">Watched {s.watchedPercent}%</span></li>)}
           </ul>
         </section>
@@ -65,7 +65,7 @@ export default function Page() {
           <p className="text-muted">ClueQuest does not send question-level data, so only scores are shown.</p>
         )}
       </section>
-      <Link href="/tutor" className="inline-block min-h-11 py-2.5 font-semibold text-navy underline underline-offset-4">Back to my classes</Link>
+      <Link href="/tutor" className="inline-block min-h-11 py-2.5 font-semibold text-accent-ink underline underline-offset-4">Back to my classes</Link>
     </div>
   );
 }

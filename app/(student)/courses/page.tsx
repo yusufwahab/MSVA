@@ -35,14 +35,14 @@ export default function Page() {
       {data.courses.length === 0 ? (
         <Empty title="No premium courses are available right now" />
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2">
+        <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {data.courses.map((c) => (
             <li key={c.id}>
-              <Card className="h-full">
+              <Card className="flex h-full flex-col">
                 <h2 className="text-2xl">{c.name}</h2>
                 <p className="mt-2 text-muted">{c.description || "A premium course from the academy."}</p>
-                <p className="mt-3 text-xl font-semibold">{money(c)}</p>
-                <div className="mt-4">
+                <p className="mt-4 text-3xl font-extrabold text-accent-ink">{money(c)}</p>
+                <div className="mt-auto pt-5">
                   {c.owned ? <Badge tone="ok">You have access</Badge> : <Button loading={busy === c.id} onClick={() => buy(c.id)}>{c.pending ? "Continue payment" : "Buy access"}</Button>}
                 </div>
               </Card>

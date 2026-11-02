@@ -1,51 +1,137 @@
 @import "tailwindcss";
 
+/*
+ * MSVA design tokens. Dark is the default; [data-theme="light"] swaps every colour.
+ * Components never use raw colours: they use the semantic tokens below.
+ * --c-accent is a fill (buttons, bars). --c-accent-ink is gold used as text, darker in light mode for contrast.
+ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-canvas: #080808;
+  --c-surface: #121212;
+  --c-surface-2: #1a1a1a;
+  --c-line: #2a2a2a;
+  --c-line-strong: #454545;
+  --c-ink: #ffffff;
+  --c-muted: #afafaf;
+  --c-accent: #d4a72c;
+  --c-accent-bright: #f4bd32;
+  --c-accent-ink: #f4bd32;
+  --c-accent-soft: #231c07;
+  --c-on-accent: #080808;
+  --c-danger: #ff8a80;
+  --c-danger-soft: #2b1412;
+  --c-ok: #6fdc97;
+  --c-ok-soft: #10241a;
+  --c-warn-soft: #2a2209;
+  --c-overlay: rgb(0 0 0 / 0.72);
+  --c-hero: #080808;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --c-canvas: #faf8f3;
+  --c-surface: #ffffff;
+  --c-surface-2: #f2eee4;
+  --c-line: #e4dfd2;
+  --c-line-strong: #c9c2ae;
+  --c-ink: #111111;
+  --c-muted: #5c5c5c;
+  --c-accent: #d4a72c;
+  --c-accent-bright: #f4bd32;
+  --c-accent-ink: #7a5a00;
+  --c-accent-soft: #fbf3d9;
+  --c-on-accent: #111111;
+  --c-danger: #b42318;
+  --c-danger-soft: #fdeceb;
+  --c-ok: #1b6b3a;
+  --c-ok-soft: #e5f4ea;
+  --c-warn-soft: #fbf0d2;
+  --c-overlay: rgb(17 17 17 / 0.5);
+  --c-hero: #080808;
+  --shadow-card: 0 1px 2px rgb(17 17 17 / 0.05), 0 8px 24px rgb(17 17 17 / 0.06);
+}
+
 @theme inline {
-  --color-paper: #fbf8f3;
-  --color-card: #ffffff;
-  --color-ink: #1b1f2a;
-  --color-muted: #555b6b;
-  --color-line: #d8d2c5;
-  --color-navy: #1d2b53;
-  --color-navy-deep: #141f3d;
-  --color-sage: #e5ede1;
-  --color-sand: #f1ebdf;
-  --color-clay: #9c4a22;
-  --color-danger: #a02020;
-  --color-danger-soft: #fbe9e6;
-  --color-ok: #1d6a3a;
-  --color-ok-soft: #e3f2e7;
-  --color-warn-soft: #fbf0d4;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-display);
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-bright: var(--c-accent-bright);
+  --color-accent-ink: var(--c-accent-ink);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-on-accent: var(--c-on-accent);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-ok: var(--c-ok);
+  --color-ok-soft: var(--c-ok-soft);
+  --color-warn-soft: var(--c-warn-soft);
+  --color-hero: var(--c-hero);
+  --shadow-card: var(--shadow-card);
+  --font-sans: var(--font-jakarta);
+  --font-display: var(--font-jakarta);
+  --radius-card: 1.25rem;
 }
 
 html {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--c-canvas);
+  color: var(--c-ink);
 }
 
 body {
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
   font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 {
-  font-family: var(--font-display), Georgia, serif;
-  letter-spacing: -0.01em;
+h1,
+h2,
+h3 {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1.15;
+}
+
+::selection {
+  background: var(--c-accent);
+  color: #080808;
 }
 
 /* One strong, visible focus indicator everywhere. */
 :focus-visible {
-  outline: 3px solid #b8741a;
+  outline: 3px solid var(--c-accent-bright);
   outline-offset: 2px;
 }
 
+dialog {
+  color: var(--c-ink);
+}
 dialog::backdrop {
-  background: rgb(20 31 61 / 0.55);
+  background: var(--c-overlay);
+}
+
+/* Smooth theme changes without animating layout. */
+body,
+header,
+main,
+section,
+footer,
+nav,
+input,
+select,
+textarea,
+button,
+a {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
 }
 
 @media (prefers-reduced-motion: reduce) {

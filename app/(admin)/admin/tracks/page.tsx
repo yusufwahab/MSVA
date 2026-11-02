@@ -72,11 +72,11 @@ export default function Page() {
             <span className="text-sm text-muted">{t.enrolmentCount} enrolment(s)</span>
           </div>
           {t.description && <p className="text-muted">{t.description}</p>}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <div>
               <div className="mb-2 flex items-center justify-between"><h3 className="text-lg">Cohorts</h3><Button variant="secondary" onClick={() => open({ kind: "cohort", track: t })}>Add cohort</Button></div>
               {t.cohorts.length === 0 ? <p className="text-muted">No cohorts yet.</p> : (
-                <ul className="divide-y divide-line border border-line">
+                <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line">
                   {t.cohorts.map((c) => (
                     <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                       <span><strong>{c.name}</strong><br /><span className="text-sm text-muted">Next session: {fmtDate(c.nextSessionAt)}</span></span>
@@ -89,7 +89,7 @@ export default function Page() {
             <div>
               <div className="mb-2 flex items-center justify-between"><h3 className="text-lg">Modules (in order)</h3><Button variant="secondary" onClick={() => open({ kind: "module", track: t })}>Add module</Button></div>
               {t.modules.length === 0 ? <p className="text-muted">No modules yet. Tutors need at least one to create classes.</p> : (
-                <ol className="divide-y divide-line border border-line">
+                <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line">
                   {t.modules.map((m, i) => (
                     <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                       <span>{m.position}. {m.title} {m.isFinal && <Badge tone="warn">Final assessment</Badge>}</span>

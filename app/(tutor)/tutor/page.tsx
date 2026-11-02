@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Alert, Badge, Button, Empty, Loading, Modal, PageHeader, SelectField, Table, Td } from "@/components/ui";
+import { Alert, Badge, Button, Empty, Loading, Modal, PageHeader, SelectField, Stat, Table, Td } from "@/components/ui";
 import { api, errMsg, fmtDate } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 
@@ -61,6 +61,15 @@ export default function Page() {
 
       {noTracks && <Alert tone="info">You have not been assigned to a track yet. Ask the academy administrator to assign one.</Alert>}
 
+      {list.data.classes.length > 0 && (
+        <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Stat label="All classes" value={list.data.classes.length} />
+          <Stat label="Live" value={list.data.classes.filter((c) => c.state === "Live").length} />
+          <Stat label="Scheduled" value={list.data.classes.filter((c) => c.state === "Scheduled").length} />
+          <Stat label="Drafts" value={list.data.classes.filter((c) => c.state === "Draft").length} />
+        </dl>
+      )}
+
       {!noTracks && list.data.classes.length === 0 ? (
         <Empty title="No classes yet">Create your first class as a draft. You can finish it later.</Empty>
       ) : (
@@ -68,12 +77,12 @@ export default function Page() {
           <Table head={["Class", "Track and cohort", "Release", "Status", "Quiz results", ""]} caption="Your classes">
             {list.data.classes.map((c) => (
               <tr key={c.id}>
-                <Td><Link className="font-semibold text-navy underline underline-offset-4" href={`/tutor/classes/${c.id}`}>{c.title || "Untitled class"}</Link><div className="text-muted">{c.module.title}</div></Td>
+                <Td><Link className="font-semibold text-accent-ink underline underline-offset-4" href={`/tutor/classes/${c.id}`}>{c.title || "Untitled class"}</Link><div className="text-muted">{c.module.title}</div></Td>
                 <Td>{c.track.name}<div className="text-muted">{c.cohort.name}</div></Td>
                 <Td>{fmtDate(c.releaseAt)}</Td>
                 <Td><Badge tone={TONE[c.state]}>{c.state}</Badge>{c.status === "DRAFT" && (!c.hasVideo || !c.hasQuiz) && <div className="mt-1 text-xs text-muted">Needs {[!c.hasVideo && "video", !c.hasQuiz && "quiz"].filter(Boolean).join(" and ")}</div>}</Td>
                 <Td>{c.status === "PUBLISHED" ? `${c.submitted} of ${c.enrolled} submitted` : "—"}</Td>
-                <Td>{c.status === "PUBLISHED" && <Link className="font-semibold text-navy underline underline-offset-4" href={`/tutor/classes/${c.id}/results`}>Results</Link>}</Td>
+                <Td>{c.status === "PUBLISHED" && <Link className="font-semibold text-accent-ink underline underline-offset-4" href={`/tutor/classes/${c.id}/results`}>Results</Link>}</Td>
               </tr>
             ))}
           </Table>
