@@ -58,7 +58,7 @@ test.describe("public pages", () => {
     await page.goto("/");
     const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
     expect(await theme()).toBe("dark"); // dark is the default
-    const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    const bg = () => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
     const darkBg = await bg();
 
     await page.getByRole("button", { name: "Switch to light mode" }).click();

@@ -67,6 +67,35 @@ export async function validateQuiz(ctx: Ctx, rawQuiz: string) {
   return { quizId, title: check.title ?? "" };
 }
 
+/** Assignment references that start with this belong to a tutor previewing a quiz; their results are never stored. */
+export const PREVIEW_PREFIX = "preview-";
+
+/** Maps a failed launch to the message a person should see. */
+function launchError(e: unknown) {
+  if (e instanceof QuizNotConfiguredError) return new HttpError(503, "QUIZ_UNAVAILABLE", "Quizzes are not available yet. Please try again later.");
+  return new HttpError(502, "QUIZ_ERROR", "We could not reach the quiz service. Please try again.");
+}
+
+/**
+ * Lets a tutor take the real quiz from the class preview. No QuizAttempt is created, so nothing reaches the
+ * students' progress, the tutor's results or the Sheets queue, and every launch is a fresh assignment.
+ */
+export async function launchQuizPreview(ctx: Ctx, cls: { id: string; quizId: string }) {
+  if (!cls.quizId) throw new HttpError(409, "NO_QUIZ", "Attach a quiz to this class first.");
+  try {
+    const launch = await ctx.quiz.createLaunch({
+      quizId: cls.quizId,
+      assignmentRef: `${PREVIEW_PREFIX}${cls.id}-${randomToken(8)}`,
+      learnerRef: `${PREVIEW_PREFIX}${randomToken(12)}`,
+      returnUrl: `${ctx.config.APP_URL}/tutor/classes/${cls.id}/preview?returned=1`,
+      passMarkPercent: ctx.config.QUIZ_PASS_MARK_PERCENT,
+    });
+    return { launchUrl: launch.launchUrl };
+  } catch (e) {
+    throw launchError(e);
+  }
+}
+
 export async function launchQuiz(ctx: Ctx, userId: string, classId: string) {
   const { db, config } = ctx;
   const { cls, view } = await requireClassAccess(db, config, userId, classId);
@@ -96,8 +125,7 @@ export async function launchQuiz(ctx: Ctx, userId: string, classId: string) {
     await db.quizAttempt.update({ where: { id: attempt.id }, data: { launchExpires: launch.expiresAt } });
     return { launchUrl: launch.launchUrl, attemptNo: attempt.attemptNo };
   } catch (e) {
-    if (e instanceof QuizNotConfiguredError) throw new HttpError(503, "QUIZ_UNAVAILABLE", "Quizzes are not available yet. Please try again later.");
-    throw new HttpError(502, "QUIZ_ERROR", "We could not reach the quiz service. Please try again.");
+    throw launchError(e);
   }
 }
 
@@ -149,6 +177,8 @@ export async function processQuizResult(ctx: Ctx, rawBody: Buffer, signature: st
   const p = resultSchema.safeParse(json);
   if (!p.success) throw new HttpError(422, "INVALID_PAYLOAD", "Payload failed validation", p.error.issues.map((i) => i.path.join(".")));
   const r = p.data;
+  // A tutor's preview attempt: acknowledge it so ClueQuest stops retrying, but keep nothing.
+  if (r.partnerAssignmentRef.startsWith(PREVIEW_PREFIX)) return "preview" as const;
 
   const attempt = await db.quizAttempt.findUnique({ where: { id: r.partnerAssignmentRef } });
   if (!attempt || attempt.studentRef !== r.learnerRef) throw new HttpError(422, "UNKNOWN_ATTEMPT", "No matching attempt");

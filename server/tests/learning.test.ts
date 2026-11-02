@@ -346,6 +346,45 @@ describe("optional multiplayer", () => {
   });
 });
 
+describe("tutor quiz preview", () => {
+  it("lets the tutor launch the real quiz without recording an attempt, and discards the result", async () => {
+    const id = await makeClass("Preview me", mod1, quizIdFor("preview"));
+    const before = await ctx.db.quizAttempt.count();
+    const r = await tutor.post(`/api/tutor/classes/${id}/quiz/preview-launch`).send({});
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.launchUrl).toContain("/api/test/quiz/launch");
+    expect(r.body.launchUrl).not.toContain("tutor%40");
+    expect(await ctx.db.quizAttempt.count()).toBe(before);
+
+    // Each preview is a fresh assignment, so the tutor can try as often as they like.
+    const ref = new URL(r.body.launchUrl).searchParams.get("attempt")!;
+    expect(ref).toMatch(/^preview-/);
+    const again = await tutor.post(`/api/tutor/classes/${id}/quiz/preview-launch`).send({});
+    expect(new URL(again.body.launchUrl).searchParams.get("attempt")).not.toBe(ref);
+
+    const payload = {
+      eventId: "evt-preview-1", type: "attempt.submitted", partnerAssignmentRef: ref, learnerRef: "preview-x", attemptId: "cq-preview-1",
+      quizId: quizIdFor("preview"), marksEarned: 5, marksPossible: 10, passMarkPercent: 70, passed: false, submittedAt: new Date().toISOString(),
+    };
+    expect((await request(app).post("/api/webhooks/cluequest/result").send(payload)).status).toBe(401); // still must be signed
+    const cb = await quizResult(app, payload);
+    expect(cb.status).toBe(200);
+    expect(cb.body.outcome).toBe("preview");
+    expect(await ctx.db.callbackEvent.count({ where: { eventId: "evt-preview-1" } })).toBe(0);
+    expect(await ctx.db.quizAttempt.count()).toBe(before);
+    await ctx.db.class.update({ where: { id }, data: { status: "DRAFT" } });
+  });
+
+  it("needs an attached quiz and is for tutors only", async () => {
+    const empty = (await tutor.post("/api/tutor/classes").send({ trackId, cohortId, moduleId: mod1 })).body.id as string;
+    const none = await tutor.post(`/api/tutor/classes/${empty}/quiz/preview-launch`).send({});
+    expect(none.status).toBe(409);
+    expect(none.body.error.code).toBe("NO_QUIZ");
+    expect((await student.post(`/api/tutor/classes/${class1}/quiz/preview-launch`).send({})).status).toBe(403);
+    await tutor.delete(`/api/tutor/classes/${empty}`);
+  });
+});
+
 describe("premium courses (Paystack test adapter)", () => {
   let premiumId = "";
   it("only unlocks after server-side verification of amount, currency and customer", async () => {

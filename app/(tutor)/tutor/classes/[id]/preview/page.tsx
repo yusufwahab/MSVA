@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { LaunchButton } from "@/components/LaunchButton";
 import { Alert, Card, Loading, PageHeader, buttonClass } from "@/components/ui";
 import { fmtDate } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
@@ -36,7 +37,16 @@ export default function Page() {
         <h2 className="text-xl">Session quiz</h2>
         <p className="mt-2 text-muted">Students must watch {p.watchThreshold}% of the video before “Take session quiz” unlocks.</p>
         <p className="mt-2">{p.quizAttached ? <>Attached: <strong>{p.quizTitle || "Individual quiz"}</strong></> : "No individual quiz attached."}</p>
-        <button type="button" disabled className={`${buttonClass("primary")} mt-3`}>Take session quiz</button>
+        <div className="mt-4">
+          {p.quizAttached ? (
+            <div className="space-y-2">
+              <LaunchButton classId={id} label="Take session quiz" endpoint={`/api/tutor/classes/${id}/quiz/preview-launch`} />
+              <p className="text-sm text-muted">Try the real quiz as a student would. Your attempt is not recorded, and you come back to this page afterwards.</p>
+            </div>
+          ) : (
+            <button type="button" disabled className={buttonClass("primary")}>Take session quiz</button>
+          )}
+        </div>
       </Card>
       {p.multiplayerUrl && (
         <Card>

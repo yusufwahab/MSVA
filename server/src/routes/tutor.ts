@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Ctx } from "../lib/ctx.js";
 import { HttpError, body, forbidden, notFound } from "../lib/http.js";
 import { requireRole } from "../middleware/auth.js";
-import { normaliseRoomUrl, parseQuizId, validateQuiz } from "../services/quiz.js";
+import { launchQuizPreview, normaliseRoomUrl, parseQuizId, validateQuiz } from "../services/quiz.js";
 import { parseYoutubeId } from "../services/progress.js";
 
 export function tutorRouter(ctx: Ctx) {
@@ -195,6 +195,12 @@ export function tutorRouter(ctx: Ctx) {
       if (e instanceof HttpError && e.status === 400) return res.json({ valid: false, message: e.message });
       throw e;
     }
+  });
+
+  /** Starts the real quiz for the tutor. Nothing is recorded against any student. */
+  r.post("/classes/:id/quiz/preview-launch", async (req, res) => {
+    const cls = await ownClass(req.user!.id, String(req.params.id));
+    res.json(await launchQuizPreview(ctx, cls));
   });
 
   /** What a student will see, regardless of release time. Never records progress. */

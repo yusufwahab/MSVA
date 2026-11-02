@@ -14,6 +14,7 @@ Every checked item below was exercised by the automated suites listed at the end
 
 **Publishing (Phase 3)**
 - Drafts save incomplete. Publishing requires title, release time, a valid YouTube link and an individual ClueQuest quiz. Tutors enter the quiz ID (or a ClueQuest address containing it); MSVA checks it with ClueQuest, so unknown, unpublished and unshared quizzes are refused and a room address is not accepted as a quiz; the quiz is locked once students have attempted it (implemented, not separately tested).
+- A tutor can take the real quiz from the class preview. It is not recorded against anyone, every launch is a fresh ClueQuest assignment (`preview-…`), and the result callback is acknowledged and discarded.
 - "Create quiz in ClueQuest" saves the draft and opens `CLUEQUEST_AUTHORING_URL` in a new tab; entering the ID shows which quiz is attached. Preview shows the student view without recording anything.
 - Students see a class only after release, only in their cohort; other-cohort, draft and unreleased classes all return the same 404.
 
@@ -35,7 +36,7 @@ Every checked item below was exercised by the automated suites listed at the end
 - Paystack flow against a test adapter: access unlocks only after server-side verification of status, amount, currency, reference and customer email; a wrong amount is refused; repeated webhooks create one payment and one entitlement; webhook signature (HMAC-SHA512) is checked.
 
 **UI**
-- Responsive at phone (Pixel 5 emulation) and desktop sizes; no horizontal overflow on public pages; no gradients; no icons; skip link; labelled fields; visible focus; modals use native `<dialog>`.
+- Redesigned in black and gold with a saved dark/light switch; responsive at phone (Pixel 5 emulation) and desktop sizes; no horizontal overflow on public pages; no gradients; skip link; labelled fields; visible focus; modals use native `<dialog>`. Wide tables scroll sideways inside their frame on phones. See the README for the design tokens.
 
 ## Verified against a real ClueQuest (local, in-process)
 
@@ -78,7 +79,7 @@ A one-off script started MSVA's real `LiveClueQuestClient` against a real ClueQu
 | `npm run lint` (web + API) | clean |
 | `npm run typecheck` (web + API) | clean |
 | `npm run build` (Next.js production build, 26 routes) | passes |
-| `npm run test:api` (Vitest + Supertest) | 33 passed |
-| `npm run test:e2e` (Playwright, desktop 1280×800 and Pixel 5) | 42 passed (21 per project) |
+| `npm run test:api` (Vitest + Supertest) | 37 passed |
+| `npm run test:e2e` (Playwright, desktop 1280×800 and Pixel 5) | 44 passed (22 per project), plus 2 skipped screenshot helpers |
 
 The acceptance journey (admin invites student → student activates with the emailed code → tutor publishes class with video and individual quiz → student reaches the quiz threshold → launches ClueQuest as a guest → signed result reaches MSVA → tutor sees the same 8/10 → next class unlocks) is `e2e/journey.spec.ts`. Edge cases (expired code, password reset by code, duplicate CSV, missing quiz link, other-cohort and locked-module access, failed attempt and retake, delayed and duplicate callbacks, optional multiplayer, deactivation of an open session, role redirects) are in `e2e/edge.spec.ts` and `server/tests/`.

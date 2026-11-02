@@ -158,8 +158,13 @@ test.describe.serial("complete learning journey", () => {
 
     await page.getByRole("link", { name: "Preview as student" }).click();
     await expect(page).toHaveURL(/preview$/);
-    await expect(page.getByRole("button", { name: "Take session quiz" })).toBeDisabled();
-    await page.goBack();
+    // The tutor can take the real quiz from the preview; it is not recorded, and they return to the preview.
+    await expect(page.getByRole("button", { name: "Take session quiz" })).toBeEnabled();
+    await page.getByRole("button", { name: "Take session quiz" }).click();
+    await expect(page).toHaveURL(/\/api\/test\/quiz\/launch/);
+    await page.getByRole("link", { name: "Return to MS Virtual Academy" }).click();
+    await expect(page).toHaveURL(/\/preview\?returned=1$/);
+    await page.goto(`/tutor/classes/${c.id}`);
 
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Publish class" }).click();

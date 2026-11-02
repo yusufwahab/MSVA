@@ -62,6 +62,15 @@ npm run test:e2e     # needs a database named msva_e2e, or E2E_DATABASE_URL; bui
 
 The default test URLs assume `postgresql://msva:msva_dev_pw@localhost:54329/...`. Override with the variables above. The e2e run wipes its database, so never point it at real data.
 
+## Design system
+
+Black and gold, dark by default with a light mode (the sun/moon button in every header; the choice is saved in the browser).
+
+- Tokens live in `app/globals.css`: `--c-*` variables per theme, mapped to Tailwind names such as `bg-canvas`, `bg-surface`, `text-accent-ink`. Components never use raw colours, so a new theme only changes that file.
+- Font: Plus Jakarta Sans (`app/layout.tsx`). Shared pieces: `components/ui.tsx` (buttons, fields, cards, tables, modals), `components/AppShell.tsx` (top bar for students and tutors, sidebar for admins), `components/Public.tsx` (public header, footer, split sign-in layout), `components/Brand.tsx` (logo, theme toggle).
+- The landing photo is `public/hero-student.webp`, made from `MS_HERO_IMG.png` (kept in the repo root as the source).
+- To review every screen in both themes: `VISUAL=<folder> npx playwright test e2e/visual.spec.ts` writes screenshots there.
+
 ## Roles and areas
 
 - **Admin** (`/admin`): tracks, cohorts, ordered modules, students (single add, CSV import with preview, resend invite, correct email, deactivate), tutors and their tracks, reports, certificates, payments, links, Sheets sync.
