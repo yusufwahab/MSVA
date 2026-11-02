@@ -73,6 +73,7 @@ export const PREVIEW_PREFIX = "preview-";
 /** Maps a failed launch to the message a person should see. */
 function launchError(e: unknown) {
   if (e instanceof QuizNotConfiguredError) return new HttpError(503, "QUIZ_UNAVAILABLE", "Quizzes are not available yet. Please try again later.");
+  console.error("[quiz] launch failed:", e instanceof Error ? `${e.message}${e.cause ? ` (${String(e.cause)})` : ""}` : e);
   return new HttpError(502, "QUIZ_ERROR", "We could not reach the quiz service. Please try again.");
 }
 

@@ -178,8 +178,11 @@ export class LiveClueQuestClient implements QuizClient {
         activity: { type: "solo", style: "points", passMarkPercent: req.passMarkPercent, attemptLimit: 1 },
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { launchUrl?: string; expiresAt?: string };
-    if (!res.ok || !json.launchUrl || !json.expiresAt) throw new Error(`ClueQuest launch failed (${res.status})`);
+    const json = (await res.json().catch(() => ({}))) as { launchUrl?: string; expiresAt?: string; error?: unknown };
+    if (!res.ok || !json.launchUrl || !json.expiresAt) {
+      const detail = json.error ? ` ${JSON.stringify(json.error).slice(0, 300)}` : "";
+      throw new Error(`ClueQuest launch failed (${res.status})${detail}`);
+    }
     return { launchUrl: json.launchUrl, expiresAt: new Date(json.expiresAt) };
   }
 }
