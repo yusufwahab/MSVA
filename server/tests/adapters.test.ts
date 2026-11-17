@@ -143,6 +143,29 @@ describe("LiveClueQuestClient (ClueQuest partner API v1)", () => {
     ).rejects.toThrow(/launch failed/);
   });
 
+  it("retries once when ClueQuest is waking up, but not on a real answer", async () => {
+    const launch = { quizId: id, assignmentRef: "a", learnerRef: "l", returnUrl: "x", passMarkPercent: 70 };
+    const good = { status: 201, body: { launchUrl: "https://app.cluequest.test/launch/abc", expiresAt: "2026-11-01T15:15:00.000Z" } };
+
+    let n = 0;
+    const waking = fakeFetch(() => (n++ === 0 ? new Error("fetch failed") : good));
+    expect((await new LiveClueQuestClient(config, waking.fn, 0).createLaunch(launch)).launchUrl).toBe("https://app.cluequest.test/launch/abc");
+    expect(waking.calls).toHaveLength(2);
+
+    let m = 0;
+    const gateway = fakeFetch(() => (m++ === 0 ? { status: 503 } : good));
+    await new LiveClueQuestClient(config, gateway.fn, 0).createLaunch(launch);
+    expect(gateway.calls).toHaveLength(2);
+
+    const down = fakeFetch(() => new Error("fetch failed"));
+    await expect(new LiveClueQuestClient(config, down.fn, 0).createLaunch(launch)).rejects.toThrow();
+    expect(down.calls).toHaveLength(2); // one retry only
+
+    const refused = fakeFetch(() => ({ status: 401 }));
+    await expect(new LiveClueQuestClient(config, refused.fn, 0).createLaunch(launch)).rejects.toThrow(/401/);
+    expect(refused.calls).toHaveLength(1);
+  });
+
   it("refuses to call out until the API URL and key are configured", async () => {
     const bare = loadConfig({ NODE_ENV: "development", DATABASE_URL: "postgresql://x" });
     await expect(new LiveClueQuestClient(bare, fakeFetch(() => ({ status: 200 })).fn).checkQuiz(id)).rejects.toThrow(/not configured/);

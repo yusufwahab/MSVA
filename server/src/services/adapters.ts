@@ -148,13 +148,30 @@ export class LiveClueQuestClient implements QuizClient {
   constructor(
     private cfg: Config,
     private fetchFn: typeof fetch = fetch,
+    private retryDelayMs = 2000,
+    private timeoutMs = 20_000,
   ) {}
-  private request(path: string, init: RequestInit = {}) {
+  /**
+   * ClueQuest may be asleep on a free host, so the first call can time out or return a gateway error while it wakes.
+   * One retry on a network failure or 502/503/504 hides that from the student. Other statuses are answers, not outages.
+   */
+  private async request(path: string, init: RequestInit = {}) {
     if (!this.cfg.CLUEQUEST_API_URL || !this.cfg.CLUEQUEST_API_KEY) throw new QuizNotConfiguredError();
-    return this.fetchFn(`${this.cfg.CLUEQUEST_API_URL.replace(/\/$/, "")}/api/partner/v1/${path}`, {
-      ...init,
-      headers: { authorization: `Bearer ${this.cfg.CLUEQUEST_API_KEY}`, "content-type": "application/json", accept: "application/json" },
-    });
+    const url = `${this.cfg.CLUEQUEST_API_URL.replace(/\/$/, "")}/api/partner/v1/${path}`;
+    const send = () =>
+      this.fetchFn(url, {
+        ...init,
+        signal: AbortSignal.timeout(this.timeoutMs),
+        headers: { authorization: `Bearer ${this.cfg.CLUEQUEST_API_KEY}`, "content-type": "application/json", accept: "application/json" },
+      });
+    try {
+      const res = await send();
+      if (![502, 503, 504].includes(res.status)) return res;
+    } catch {
+      /* fall through to the retry */
+    }
+    await new Promise((r) => setTimeout(r, this.retryDelayMs));
+    return send();
   }
   async checkQuiz(quizId: string): Promise<QuizCheck> {
     const res = await this.request(`quizzes/${encodeURIComponent(quizId)}`);

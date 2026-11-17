@@ -22,6 +22,10 @@ const schema = z.object({
   /** Must be a sender verified in Brevo. */
   EMAIL_FROM_ADDRESS: z.string().default(""),
   EMAIL_FROM_NAME: z.string().default("MS Virtual Academy"),
+  /** Optional. When both are set, the server keeps one admin account in step with them at every startup. */
+  ADMIN_EMAIL: z.string().default(""),
+  ADMIN_PASSWORD: z.string().default(""),
+  ADMIN_NAME: z.string().default(""),
   /** How long an activation code (sent when someone is invited) stays valid. */
   ACTIVATION_CODE_TTL_HOURS: z.coerce.number().default(72),
   RESET_CODE_TTL_MINUTES: z.coerce.number().default(60),
@@ -71,6 +75,11 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`Invalid environment: ${msg}`);
   }
   const c = parsed.data;
+  if (c.ADMIN_EMAIL || c.ADMIN_PASSWORD) {
+    if (!c.ADMIN_EMAIL || !c.ADMIN_PASSWORD) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be set together");
+    if (!z.string().email().safeParse(c.ADMIN_EMAIL.trim()).success) throw new Error("ADMIN_EMAIL is not a valid email address");
+    if (c.ADMIN_PASSWORD.length < 10) throw new Error("ADMIN_PASSWORD must be at least 10 characters");
+  }
   if (c.NODE_ENV === "production") {
     if (c.ENABLE_TEST_ENDPOINTS) throw new Error("ENABLE_TEST_ENDPOINTS must not be set in production");
     if (c.EMAIL_ADAPTER === "test") throw new Error("EMAIL_ADAPTER=test is not allowed in production");
