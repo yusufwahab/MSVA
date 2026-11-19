@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { HOME, type Role } from "@/components/AppShell";
 import { AuthPage } from "@/components/Public";
-import { Alert, Button, TextField, buttonClass } from "@/components/ui";
+import { Alert, Button, PasswordField, TextField, buttonClass } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 
 const GOOGLE_ERRORS: Record<string, string> = {
@@ -50,7 +50,7 @@ function SignInForm() {
         {oauthError && <Alert>{GOOGLE_ERRORS[oauthError] ?? "Sign-in did not complete."}</Alert>}
         {error && <Alert>{error}</Alert>}
         <TextField label="Email address" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <TextField label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <PasswordField label="Password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" loading={busy} className="w-full">
           Sign in
         </Button>

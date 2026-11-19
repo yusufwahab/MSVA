@@ -3,7 +3,7 @@
 import { buttonClass, type Variant } from "./styles";
 export { buttonClass };
 
-import { useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 export function Button({ variant = "primary", loading, className = "", children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; loading?: boolean }) {
   return (
@@ -51,6 +51,44 @@ export function Field({
 
 export function TextField({ label, error, hint, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string; hint?: string }) {
   return <Field label={label} error={error} hint={hint}>{(p) => <input {...rest} {...p} className={`${inputCls} ${rest.className ?? ""}`} />}</Field>;
+}
+
+/** A password input with an eye button that shows or hides what was typed. */
+export function PasswordField({ label, error, hint, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: string; error?: string; hint?: string }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <Field label={label} error={error} hint={hint}>
+      {(p) => (
+        <div className="relative">
+          <input {...rest} {...p} type={shown ? "text" : "password"} className={`${inputCls} pr-12 ${rest.className ?? ""}`} />
+          {/* The label stays "Show characters" and aria-pressed carries the state; the title is the hover hint. */}
+          <button
+            type="button"
+            onClick={() => setShown((v) => !v)}
+            aria-label="Show characters"
+            aria-pressed={shown}
+            aria-controls={p.id}
+            title={shown ? "Hide password" : "Show password"}
+            className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-muted hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              {shown ? (
+                <>
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 8.5 4.2 9.7 6.2a1.6 1.6 0 0 1 0 1.6 15.5 15.5 0 0 1-3 3.6M6.5 6.6A15.4 15.4 0 0 0 2.3 11.8a1.6 1.6 0 0 0 0 1.4C3.5 15.2 7 19 12 19c1.6 0 3-.4 4.2-1M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                </>
+              ) : (
+                <>
+                  <path d="M2.3 11.8a1.6 1.6 0 0 0 0 1.4C3.5 15.2 7 19 12 19s8.5-3.8 9.7-5.8a1.6 1.6 0 0 0 0-1.4C20.5 9.8 17 6 12 6S3.5 9.8 2.3 11.8Z" />
+                  <circle cx="12" cy="12.5" r="3" />
+                </>
+              )}
+            </svg>
+          </button>
+        </div>
+      )}
+    </Field>
+  );
 }
 
 export function TextArea({ label, error, hint, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; error?: string; hint?: string }) {

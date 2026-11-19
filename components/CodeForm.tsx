@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { AuthPage } from "@/components/Public";
-import { Alert, Button, TextField, buttonClass } from "@/components/ui";
+import { Alert, Button, PasswordField, TextField, buttonClass } from "@/components/ui";
 import { api, ApiError, errMsg } from "@/lib/api";
 
 /**
@@ -118,8 +118,8 @@ export function CodeForm({ purpose }: { purpose: "activate" | "reset" }) {
             Send me a new code
           </Button>
         </div>
-        <TextField label={activate ? "Choose a password" : "New password"} type="password" autoComplete="new-password" hint="At least 10 characters." value={password} error={fieldErr.password} onChange={(e) => setPassword(e.target.value)} />
-        <TextField label="Confirm password" type="password" autoComplete="new-password" value={confirm} error={fieldErr.confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <PasswordField label={activate ? "Choose a password" : "New password"} autoComplete="new-password" hint="At least 10 characters." value={password} error={fieldErr.password} onChange={(e) => setPassword(e.target.value)} />
+        <PasswordField label="Confirm password" autoComplete="new-password" value={confirm} error={fieldErr.confirm} onChange={(e) => setConfirm(e.target.value)} />
         <Button type="submit" loading={busy} className="w-full">
           {activate ? "Activate and go to my dashboard" : "Change password"}
         </Button>
