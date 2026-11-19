@@ -64,6 +64,12 @@ export async function verifyAndGrant(ctx: Ctx, reference: string) {
       update: {},
       create: { userId: payment.userId, trackId: payment.trackId, paymentId: payment.id },
     });
+    // Paying earns a participation certificate; an admin still has to unlock it before the student can download.
+    await tx.certificateEligibility.upsert({
+      where: { userId_trackId_kind: { userId: payment.userId, trackId: payment.trackId, kind: "PARTICIPATION" } },
+      update: {},
+      create: { userId: payment.userId, trackId: payment.trackId, kind: "PARTICIPATION" },
+    });
     const hasEnrolment = await tx.enrolment.findUnique({ where: { userId_trackId: { userId: payment.userId, trackId: payment.trackId } } });
     if (!hasEnrolment) {
       const cohort = await tx.cohort.findFirst({ where: { trackId: payment.trackId }, orderBy: { createdAt: "asc" } });

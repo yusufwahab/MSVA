@@ -6,7 +6,7 @@ import { useLoad } from "@/lib/useLoad";
 
 interface Overview {
   students: number; activeStudents: number; invited: number; tutors: number; tracks: number; published: number;
-  passedAttempts: number; certs: number; pendingJobs: number; failedJobs: number; failedCerts: number;
+  passedAttempts: number; certs: number; pendingJobs: number; failedJobs: number; failedCerts: number; certsAwaiting: number;
 }
 
 export default function Page() {
@@ -25,8 +25,9 @@ export default function Page() {
   return (
     <div className="space-y-6">
       <PageHeader title="Academy overview" lead="Where things stand right now." />
-      {(data.failedCerts > 0 || data.failedJobs > 0) && (
+      {(data.certsAwaiting > 0 || data.failedCerts > 0 || data.failedJobs > 0) && (
         <Alert tone="warn" title="Needs attention">
+          {data.certsAwaiting > 0 && <p>{data.certsAwaiting} certificate(s) are waiting for you to unlock them. <Link className="font-semibold underline" href="/admin/certificates">Review them</Link>.</p>}
           {data.failedCerts > 0 && <p>{data.failedCerts} certificate(s) failed to generate. <Link className="font-semibold underline" href="/admin/certificates">Retry them</Link>.</p>}
           {data.failedJobs > 0 && <p>{data.failedJobs} Google Sheets sync job(s) failed. <Link className="font-semibold underline" href="/admin/settings">Review sync</Link>.</p>}
         </Alert>

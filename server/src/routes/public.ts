@@ -35,7 +35,10 @@ export function publicRouter(ctx: Ctx) {
       include: { user: true, track: true },
     });
     if (!c || c.status !== "ISSUED") throw notFound("Certificate");
-    res.json({ valid: true, name: c.user.name, studentCode: c.studentCode, track: c.track.name, issuedAt: c.issuedAt, reference: c.verificationRef });
+    // A certificate an admin has taken back no longer verifies.
+    const elig = await ctx.db.certificateEligibility.findUnique({ where: { userId_trackId_kind: { userId: c.userId, trackId: c.trackId, kind: c.kind } } });
+    if (!elig?.unlockedAt) throw notFound("Certificate");
+    res.json({ valid: true, kind: c.kind, name: c.user.name, studentCode: c.studentCode, track: c.track.name, issuedAt: c.issuedAt, reference: c.verificationRef });
   });
 
   return r;

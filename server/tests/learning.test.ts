@@ -277,42 +277,72 @@ describe("quiz handoff and results", () => {
     await ctx.db.class.update({ where: { id }, data: { status: "DRAFT" } });
   });
 
-  it("issues one certificate after the final assessment and keeps issuance retryable", async () => {
-    expect((await student.get("/api/student/dashboard")).body.tracks[0].certificate.eligible).toBe(false);
+  it("makes the student eligible, but issues and releases the certificate only when an admin unlocks it", async () => {
+    expect((await student.get("/api/student/dashboard")).body.tracks[0].certificates).toEqual([]);
     await watch(student, classFinal, 100);
     await launch(student, classFinal);
     const a = await attemptFor("stu@msva.test", classFinal);
-    // Make PDF generation fail once.
+    await quizResult(app, resultFor(a));
+
+    // Eligible, but nothing is issued and the student cannot get it yet.
+    expect(await ctx.db.certificateEligibility.count({ where: { kind: "COMPLETION" } })).toBe(1);
+    expect(await ctx.db.certificate.count()).toBe(0);
+    expect((await student.get("/api/student/dashboard")).body.tracks[0].certificates).toEqual([{ kind: "COMPLETION", state: "AWAITING_APPROVAL", id: null }]);
+    const early = await student.post("/api/student/certificates/retry").send({ trackId, kind: "COMPLETION" });
+    expect(early.status).toBe(403);
+    expect(early.body.error.code).toBe("NOT_UNLOCKED");
+
+    // Only admins can unlock.
+    const ref = { userId: (await ctx.db.user.findUniqueOrThrow({ where: { email: "stu@msva.test" } })).id, trackId, kind: "COMPLETION" };
+    expect((await student.post("/api/admin/certificates/unlock").send({ items: [ref] })).status).toBe(403);
+
+    // Unlock while PDF generation is down: it stays unlocked, the certificate is FAILED, and a retry fixes it.
     const real = ctx.certificates.render;
     ctx.certificates.render = async () => {
       throw new Error("renderer down");
     };
-    await quizResult(app, resultFor(a));
+    const first = await admin.post("/api/admin/certificates/unlock").send({ items: [ref] });
     ctx.certificates.render = real;
-    expect(await ctx.db.certificateEligibility.count()).toBe(1);
+    expect(first.status).toBe(200);
+    expect(first.body.results[0]).toMatchObject({ ok: false, status: "FAILED" });
     const failed = await ctx.db.certificate.findFirstOrThrow();
     expect(failed.status).toBe("FAILED");
     expect(failed.lastError).toMatch(/renderer down/);
+    expect((await student.get("/api/student/dashboard")).body.tracks[0].certificates[0].state).toBe("PREPARING");
 
-    const retry = await student.post("/api/student/certificates/retry").send({ trackId });
+    const retry = await student.post("/api/student/certificates/retry").send({ trackId, kind: "COMPLETION" });
     expect(retry.body.status).toBe("ISSUED");
     expect(await ctx.db.certificate.count()).toBe(1);
+    expect((await student.get("/api/student/dashboard")).body.tracks[0].certificates[0]).toMatchObject({ kind: "COMPLETION", state: "READY", id: retry.body.id });
 
-    const dl = await student.get(`/api/student/certificates/${retry.body.id}/download`).buffer(true).parse((res, cb) => {
-      const chunks: Buffer[] = [];
-      res.on("data", (c: Buffer) => chunks.push(c));
-      res.on("end", () => cb(null, Buffer.concat(chunks)));
-    });
+    const download = (agent: typeof student) =>
+      agent.get(`/api/student/certificates/${retry.body.id}/download`).buffer(true).parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+    const dl = await download(student);
     expect(dl.status).toBe(200);
     expect((dl.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
+    expect(dl.headers["content-disposition"]).toContain("completion");
     // Someone else cannot download it.
     expect((await outsider.get(`/api/student/certificates/${retry.body.id}/download`)).status).toBe(404);
 
     const cert = await ctx.db.certificate.findFirstOrThrow();
     const verify = await request(app).get(`/api/public/verify/${cert.verificationRef}`);
-    expect(verify.body).toMatchObject({ valid: true, name: "Stu Dent", track: "Graphic Design" });
+    expect(verify.body).toMatchObject({ valid: true, kind: "COMPLETION", name: "Stu Dent", track: "Graphic Design" });
     expect(verify.body.studentCode).toMatch(/^MSVA-/);
     expect((await request(app).get("/api/public/verify/NOPE")).status).toBe(404);
+
+    // Locking takes it back everywhere; unlocking again returns the same certificate without re-rendering.
+    expect((await admin.post("/api/admin/certificates/lock").send(ref)).status).toBe(200);
+    expect((await download(student)).status).toBe(404);
+    expect((await request(app).get(`/api/public/verify/${cert.verificationRef}`)).status).toBe(404);
+    expect((await student.get("/api/student/dashboard")).body.tracks[0].certificates[0].state).toBe("AWAITING_APPROVAL");
+    const again = await admin.post("/api/admin/certificates/unlock").send({ items: [ref] });
+    expect(again.body.results[0]).toMatchObject({ ok: true, status: "ISSUED" });
+    expect((await download(student)).status).toBe(200);
+    expect((await ctx.db.certificate.findFirstOrThrow()).attempts).toBe(cert.attempts);
   });
 
   it("returns an unavailable error, not a fake launch, when ClueQuest is not configured", async () => {
@@ -430,6 +460,32 @@ describe("premium courses (Paystack test adapter)", () => {
     expect(list.body.payments.filter((p: { status: string }) => p.status === "SUCCESS")).toHaveLength(1);
     expect(paystack(ctx).results.size).toBe(2);
   });
+
+  it("makes a paying student eligible for a participation certificate that an admin must unlock", async () => {
+    const stu = await ctx.db.user.findUniqueOrThrow({ where: { email: "stu@msva.test" } });
+    expect(await ctx.db.certificateEligibility.count({ where: { userId: stu.id, trackId: premiumId, kind: "PARTICIPATION" } })).toBe(1);
+    const dash = (await student.get("/api/student/dashboard")).body.tracks.find((t: { track: { id: string } }) => t.track.id === premiumId);
+    expect(dash.certificates).toEqual([{ kind: "PARTICIPATION", state: "AWAITING_APPROVAL", id: null }]);
+    // Paying does not count as completing.
+    expect(await ctx.db.certificateEligibility.count({ where: { userId: stu.id, trackId: premiumId, kind: "COMPLETION" } })).toBe(0);
+
+    const ref = { userId: stu.id, trackId: premiumId, kind: "PARTICIPATION" };
+    const unlocked = await admin.post("/api/admin/certificates/unlock").send({ items: [ref] });
+    expect(unlocked.body.results[0]).toMatchObject({ ok: true, status: "ISSUED" });
+    const after = (await student.get("/api/student/dashboard")).body.tracks.find((t: { track: { id: string } }) => t.track.id === premiumId);
+    expect(after.certificates[0]).toMatchObject({ kind: "PARTICIPATION", state: "READY" });
+    const dl = await student.get(`/api/student/certificates/${after.certificates[0].id}/download`).buffer(true).parse((res, cb) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => cb(null, Buffer.concat(chunks)));
+    });
+    expect(dl.status).toBe(200);
+    expect(dl.headers["content-disposition"]).toContain("participation");
+    expect((dl.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
+
+    // The student's completion and participation certificates are separate records.
+    expect((await ctx.db.certificate.findMany({ where: { userId: stu.id } })).map((c) => c.kind).sort()).toEqual(["COMPLETION", "PARTICIPATION"]);
+  });
 });
 
 describe("admin views and settings", () => {
@@ -438,7 +494,8 @@ describe("admin views and settings", () => {
     const prog = await admin.get("/api/admin/progress");
     expect(prog.body.progress.find((p: { name: string }) => p.name === "Stu Dent")).toBeTruthy();
     expect((await admin.get("/api/admin/scores")).body.scores.length).toBeGreaterThan(2);
-    expect((await admin.get("/api/admin/certificates")).body.certificates[0].status).toBe("ISSUED");
+    const certList = (await admin.get("/api/admin/certificates")).body.certificates as { kind: string; status: string; unlocked: boolean }[];
+    expect(certList.find((c) => c.kind === "COMPLETION")).toMatchObject({ status: "ISSUED", unlocked: true });
 
     const bad = await admin.put("/api/admin/settings").send({ communityUrl: "javascript:alert(1)", whatsappUrl: "", websiteUrl: "" });
     expect(bad.status).toBe(400);

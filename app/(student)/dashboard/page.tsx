@@ -14,7 +14,7 @@ interface ClassRow {
 interface TrackRow {
   enrolmentId: string; track: { id: string; name: string; isPremium: boolean }; cohort: { name: string }; accessible: boolean;
   passedCount: number; totalCount: number; percent: number; nextSessionAt: string | null; classes: ClassRow[];
-  certificate: { eligible: boolean; id: string | null; status: string | null };
+  certificates: { kind: "PARTICIPATION" | "COMPLETION"; state: "AWAITING_APPROVAL" | "READY" | "PREPARING"; id: string | null }[];
 }
 interface Dash {
   student: { name: string; studentCode: string };
@@ -159,9 +159,13 @@ export default function Page() {
             <Alert tone="info">This is a premium course. <Link className="font-semibold underline" href="/courses">Purchase access</Link> to unlock its classes.</Alert>
           ) : (
             <>
-              {t.certificate.eligible && (
+              {t.certificates.some((c) => c.kind === "COMPLETION") && (
                 <Alert tone="success" title="You have completed this track.">
-                  <Link href="/progress" className="font-semibold underline">Download your certificate</Link>
+                  {t.certificates.find((c) => c.kind === "COMPLETION")!.state === "READY" ? (
+                    <Link href="/progress" className="font-semibold underline">Download your certificate</Link>
+                  ) : (
+                    <Link href="/progress" className="font-semibold underline">Your certificate is waiting for approval</Link>
+                  )}
                 </Alert>
               )}
               {t.classes.length === 0 ? (

@@ -4,7 +4,7 @@ import type { Ctx } from "../lib/ctx.js";
 import { HttpError, body, notFound } from "../lib/http.js";
 import { requireRole } from "../middleware/auth.js";
 import { launchQuiz, markReturned } from "../services/quiz.js";
-import { issueCertificate } from "../services/certificate.js";
+import { issueCertificate, studentCertificateState } from "../services/certificate.js";
 import { startCheckout, verifyAndGrant } from "../services/payments.js";
 import { buildTrackViews, pickPrimary, requireClassAccess } from "../services/progress.js";
 import { getLinks } from "./public.js";
@@ -17,7 +17,7 @@ export function studentRouter(ctx: Ctx) {
   r.get("/dashboard", async (req, res) => {
     const userId = req.user!.id;
     const tracks = await buildTrackViews(db, config, userId);
-    const certs = await db.certificate.findMany({ where: { userId }, select: { id: true, trackId: true, status: true } });
+    const certs = await db.certificate.findMany({ where: { userId }, select: { id: true, trackId: true, kind: true, status: true } });
     const eligible = await db.certificateEligibility.findMany({ where: { userId } });
     res.json({
       student: { name: req.user!.name, studentCode: req.user!.studentCode },
@@ -31,9 +31,9 @@ export function studentRouter(ctx: Ctx) {
           id: c.id, title: c.title, moduleTitle: c.moduleTitle, modulePosition: c.modulePosition, isFinal: c.isFinal, state: c.state,
           actionLabel: c.actionLabel, watchedPercent: c.watchedPercent, releaseAt: c.releaseAt, best: c.best,
         })),
-        certificate: eligible.some((e) => e.trackId === t.track.id)
-          ? { eligible: true, id: certs.find((c) => c.trackId === t.track.id)?.id ?? null, status: certs.find((c) => c.trackId === t.track.id)?.status ?? "PENDING" }
-          : { eligible: false, id: null, status: null },
+        certificates: eligible
+          .filter((e) => e.trackId === t.track.id)
+          .map((e) => ({ kind: e.kind, ...studentCertificateState(e, certs.find((c) => c.trackId === e.trackId && c.kind === e.kind)) })),
       })),
     });
   });
@@ -106,17 +106,21 @@ export function studentRouter(ctx: Ctx) {
     const c = await db.certificate.findUnique({ where: { id: String(req.params.id) }, include: { track: true } });
     // Another student's certificate looks identical to a missing one.
     if (!c || c.userId !== req.user!.id || c.status !== "ISSUED" || !c.pdf) throw notFound("Certificate");
+    // Still locked (or taken back) by an admin: the same answer as a missing one.
+    const elig = await db.certificateEligibility.findUnique({ where: { userId_trackId_kind: { userId: c.userId, trackId: c.trackId, kind: c.kind } } });
+    if (!elig?.unlockedAt) throw notFound("Certificate");
     res.setHeader("content-type", "application/pdf");
-    res.setHeader("content-disposition", `attachment; filename="MSVA-certificate-${c.studentCode}.pdf"`);
+    res.setHeader("content-disposition", `attachment; filename="MSVA-${c.kind.toLowerCase()}-certificate-${c.studentCode}.pdf"`);
     res.send(Buffer.from(c.pdf));
   });
 
   r.post("/certificates/retry", async (req, res) => {
-    const { trackId } = body(req, z.object({ trackId: z.string() }));
-    const elig = await db.certificateEligibility.findUnique({ where: { userId_trackId: { userId: req.user!.id, trackId } } });
-    if (!elig) throw new HttpError(403, "NOT_ELIGIBLE", "You have not completed this track yet.");
+    const { trackId, kind } = body(req, z.object({ trackId: z.string(), kind: z.enum(["PARTICIPATION", "COMPLETION"]) }));
+    const elig = await db.certificateEligibility.findUnique({ where: { userId_trackId_kind: { userId: req.user!.id, trackId, kind } } });
+    if (!elig) throw new HttpError(403, "NOT_ELIGIBLE", "You are not eligible for this certificate yet.");
+    if (!elig.unlockedAt) throw new HttpError(403, "NOT_UNLOCKED", "This certificate is waiting for approval from the academy.");
     try {
-      const c = await issueCertificate(ctx, req.user!.id, trackId);
+      const c = await issueCertificate(ctx, req.user!.id, trackId, kind);
       res.json({ id: c.id, status: c.status });
     } catch {
       throw new HttpError(502, "CERT_FAILED", "We could not generate your certificate yet. Please try again shortly.");

@@ -28,7 +28,7 @@ Every checked item below was exercised by the automated suites listed at the end
 **Metrics, progression, certificates (Phase 5)**
 - Students see score, pass mark, attempt history. Tutors see enrolled / submitted / passed / outstanding, per-student scores and attempts; retakers count once. Question insights appear only when the callback includes them.
 - Module prerequisites are enforced on the server, including direct URLs and the progress and launch endpoints.
-- Eligibility and issuance are separate records. A failed PDF render leaves a retryable record (student retry is tested; the admin Retry button calls the same service but has no browser test); one certificate per student and track; download only by its owner; public verification by reference.
+- Two certificate kinds per student and track: **participation** (earned by a successful payment) and **completion** (every class passed). Each follows eligibility, then an **admin unlock**, then issuance, so a student can download only after an admin unlocks it (Admin > Certificates: filters, per-row Unlock/Lock, bulk unlock). Unlocking issues the PDF; a failed render leaves a retryable record (student and admin Retry). Locking takes it back: download stops and `/verify` returns not found. Downloads are owner-only. The artwork is in `server/assets/certificates/` (`participation.jpg`, `completion.jpg`); the renderer prints the name, course, ID, date and a verification QR over it. Coordinates are in `PdfKitRenderer` (`server/src/services/certificate.ts`); to change the design, replace the image and adjust them. The migration marks certificates that were already issued as unlocked and makes existing paying students eligible for participation (locked).
 
 **Operations (Phase 6)**
 - Admin views: overview, enrolments, progress, scores, certificates, payments; configurable community / WhatsApp / website links (validated as http(s)).
@@ -51,7 +51,7 @@ A one-off script started MSVA's real `LiveClueQuestClient` against a real ClueQu
 | **Google sign-in** | OAuth client id and secret. | Authorization-code flow; an invited account whose Google-verified email matches is activated. No test covers it. |
 | **Google Sheets** | Service account JSON and a shared sheet with tabs Registrations, Enrolments, Scores. | `GoogleSheetsClient` (JWT bearer, `values:append`), untested against Google. |
 | **Paystack (test mode)** | `sk_test_…` key and a webhook URL. | `LivePaystackClient` for initialize/verify, untested against Paystack. No browser test of the premium purchase screens. |
-| **Python certificate script** | The script. | Built-in PDF renderer is used. `CERTIFICATE_SCRIPT_PATH` runs a script that reads JSON on stdin and writes PDF bytes to stdout; this contract is an assumption to confirm. |
+| **Python certificate script** | The script. | Built-in PDF renderer is used. `CERTIFICATE_SCRIPT_PATH` runs a script that reads JSON on stdin (now including `kind`) and writes PDF bytes to stdout; this contract is an assumption to confirm. |
 | **Supabase database** | A project. | Tests ran on local PostgreSQL 16. Use the pooled URL as `DATABASE_URL` and the direct URL as `DIRECT_URL`. Migrations were not applied to Supabase. |
 | **YouTube player** | — | The embed with resume and periodic saving is implemented, but headless tests block YouTube and drive progress through the API. Try it once in a real browser. |
 

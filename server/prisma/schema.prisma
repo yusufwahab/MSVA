@@ -37,6 +37,12 @@ enum AttemptStatus {
   EXPIRED
 }
 
+/// PARTICIPATION is earned by paying for a course; COMPLETION by passing every class of a track.
+enum CertificateKind {
+  PARTICIPATION
+  COMPLETION
+}
+
 enum CertificateStatus {
   PENDING
   ISSUED
@@ -274,9 +280,13 @@ model CertificateEligibility {
   user       User     @relation(fields: [userId], references: [id])
   trackId    String
   track      Track    @relation(fields: [trackId], references: [id])
-  eligibleAt DateTime @default(now())
+  kind       CertificateKind @default(COMPLETION)
+  eligibleAt DateTime        @default(now())
+  /// Students can download only after an admin unlocks it. Clearing this locks it again.
+  unlockedAt   DateTime?
+  unlockedById String?
 
-  @@unique([userId, trackId])
+  @@unique([userId, trackId, kind])
 }
 
 model Certificate {
@@ -285,6 +295,7 @@ model Certificate {
   user            User              @relation(fields: [userId], references: [id])
   trackId         String
   track           Track             @relation(fields: [trackId], references: [id])
+  kind            CertificateKind   @default(COMPLETION)
   status          CertificateStatus @default(PENDING)
   verificationRef String            @unique
   studentCode     String
@@ -293,7 +304,7 @@ model Certificate {
   attempts        Int               @default(0)
   lastError       String?
 
-  @@unique([userId, trackId])
+  @@unique([userId, trackId, kind])
 }
 
 model Entitlement {

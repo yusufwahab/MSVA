@@ -349,7 +349,9 @@ export class GoogleSheetsClient implements SheetsClient {
 
 /* --------------------------------------------------- Certificate renderer */
 
+export type CertificateKind = "PARTICIPATION" | "COMPLETION";
 export interface CertificateData {
+  kind: CertificateKind;
   studentName: string;
   studentCode: string;
   trackName: string;

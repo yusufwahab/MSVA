@@ -4,7 +4,7 @@ import type { Ctx } from "../lib/ctx.js";
 import { HttpError, body, emailSchema, notFound, parse } from "../lib/http.js";
 import { requireRole } from "../middleware/auth.js";
 import { classifyCsv } from "../services/csv.js";
-import { issueCertificate } from "../services/certificate.js";
+import { issueCertificate, lockCertificate, unlockCertificate } from "../services/certificate.js";
 import { processDueJobs } from "../services/jobs.js";
 import { addStudentEnrolment, revokeSessions, sendActivationCode } from "../services/people.js";
 import { getLinks, saveLinks } from "./public.js";
@@ -26,7 +26,7 @@ export function adminRouter(ctx: Ctx) {
 
   /* ------------------------------------------------------------ overview */
   r.get("/overview", async (_req, res) => {
-    const [students, activeStudents, invited, tutors, tracks, published, passedAttempts, certs, pendingJobs, failedJobs, failedCerts] = await Promise.all([
+    const [students, activeStudents, invited, tutors, tracks, published, passedAttempts, certs, pendingJobs, failedJobs, failedCerts, certsAwaiting] = await Promise.all([
       db.user.count({ where: { role: "STUDENT" } }),
       db.user.count({ where: { role: "STUDENT", status: "ACTIVE" } }),
       db.user.count({ where: { role: "STUDENT", status: "INVITED" } }),
@@ -38,8 +38,9 @@ export function adminRouter(ctx: Ctx) {
       db.syncJob.count({ where: { status: "PENDING" } }),
       db.syncJob.count({ where: { status: "FAILED" } }),
       db.certificate.count({ where: { status: "FAILED" } }),
+      db.certificateEligibility.count({ where: { unlockedAt: null } }),
     ]);
-    res.json({ students, activeStudents, invited, tutors, tracks, published, passedAttempts, certs, pendingJobs, failedJobs, failedCerts });
+    res.json({ students, activeStudents, invited, tutors, tracks, published, passedAttempts, certs, pendingJobs, failedJobs, failedCerts, certsAwaiting });
   });
 
   /* ------------------------------------------------- tracks/modules/cohorts */
@@ -377,25 +378,51 @@ export function adminRouter(ctx: Ctx) {
 
   r.get("/certificates", async (_req, res) => {
     const eligible = await db.certificateEligibility.findMany({ include: { user: true, track: true }, orderBy: { eligibleAt: "desc" }, take: 500 });
-    const certs = await db.certificate.findMany({ select: { id: true, userId: true, trackId: true, status: true, verificationRef: true, issuedAt: true, attempts: true, lastError: true } });
+    const certs = await db.certificate.findMany({ select: { id: true, userId: true, trackId: true, kind: true, status: true, verificationRef: true, issuedAt: true, attempts: true, lastError: true } });
     res.json({
       certificates: eligible.map((e) => {
-        const c = certs.find((x) => x.userId === e.userId && x.trackId === e.trackId);
+        const c = certs.find((x) => x.userId === e.userId && x.trackId === e.trackId && x.kind === e.kind);
         return {
-          eligibilityId: e.id, studentCode: e.user.studentCode, name: e.user.name, track: e.track.name, userId: e.userId, trackId: e.trackId,
-          eligibleAt: e.eligibleAt, status: c?.status ?? "NOT_ISSUED", verificationRef: c?.verificationRef ?? null, issuedAt: c?.issuedAt ?? null,
+          eligibilityId: e.id, kind: e.kind, studentCode: e.user.studentCode, name: e.user.name, track: e.track.name, userId: e.userId, trackId: e.trackId,
+          eligibleAt: e.eligibleAt, unlocked: Boolean(e.unlockedAt), unlockedAt: e.unlockedAt,
+          status: c?.status ?? "NOT_ISSUED", verificationRef: c?.verificationRef ?? null, issuedAt: c?.issuedAt ?? null,
           attempts: c?.attempts ?? 0, lastError: c?.lastError ?? null,
         };
       }),
     });
   });
 
+  const certRef = z.object({ userId: z.string(), trackId: z.string(), kind: z.enum(["PARTICIPATION", "COMPLETION"]) });
+
+  /** Unlocks one or several certificates (and issues their PDFs). Each one succeeds or fails on its own. */
+  r.post("/certificates/unlock", async (req, res) => {
+    const { items } = body(req, z.object({ items: z.array(certRef).min(1).max(100) }));
+    const results = [];
+    for (const i of items) {
+      try {
+        const out = await unlockCertificate(ctx, req.user!.id, i.userId, i.trackId, i.kind);
+        results.push({ ...i, ok: out.status === "ISSUED", status: out.status });
+      } catch (e) {
+        results.push({ ...i, ok: false, status: "NOT_ELIGIBLE", error: e instanceof Error ? e.message : "Failed" });
+      }
+    }
+    res.json({ results, unlocked: results.filter((x) => x.ok).length });
+  });
+
+  /** Takes a certificate back. The student can no longer download it and it stops verifying. */
+  r.post("/certificates/lock", async (req, res) => {
+    const b = body(req, certRef);
+    await lockCertificate(ctx, b.userId, b.trackId, b.kind);
+    res.json({ ok: true });
+  });
+
   r.post("/certificates/retry", async (req, res) => {
-    const b = body(req, z.object({ userId: z.string(), trackId: z.string() }));
+    const b = body(req, certRef);
     try {
-      const c = await issueCertificate(ctx, b.userId, b.trackId);
+      const c = await issueCertificate(ctx, b.userId, b.trackId, b.kind);
       res.json({ status: c.status });
     } catch (e) {
+      if (e instanceof HttpError) throw e;
       throw new HttpError(502, "CERT_FAILED", e instanceof Error ? e.message : "Certificate could not be generated");
     }
   });

@@ -73,7 +73,7 @@ Black and gold, dark by default with a light mode (the sun/moon button in every 
 
 ## Roles and areas
 
-- **Admin** (`/admin`): tracks, cohorts, ordered modules, students (single add, CSV import with preview, resend invite, correct email, deactivate), tutors and their tracks, reports, certificates, payments, links, Sheets sync.
+- **Admin** (`/admin`): tracks, cohorts, ordered modules, students (single add, CSV import with preview, resend invite, correct email, deactivate), tutors and their tracks, reports, certificates (unlock or lock participation and completion certificates), payments, links, Sheets sync.
 - **Tutor** (`/tutor`): My classes, class editor with drafts, scheduling, preview, publish; per-class results.
-- **Student** (`/dashboard`): next action, class page with video and quiz handoff, results and certificate, premium courses.
+- **Student** (`/dashboard`): next action, class page with video and quiz handoff, results and certificates (participation after payment, completion after the final class; each downloadable once an admin unlocks it), premium courses.
 - **Public**: landing page, sign in, activate, password reset, certificate verification at `/verify/<reference>`.
